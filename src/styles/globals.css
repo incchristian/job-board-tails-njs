@@ -1,0 +1,7 @@
+/* filepath: /c:/Users/K2/IdeaProjects/Job-Board Tails NJS/job-board/src/styles/globals.css */
+.simple-layout {
+  background-image: url('/images/photos/background-image.jpg');
+  background-size: cover;
+  background-position: center;
+  min-height: 100vh;
+}
