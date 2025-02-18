@@ -4,13 +4,15 @@ import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import SimpleLayout from "@/components/Layouts/SimpleLayout";
+import { useRouter } from "next/navigation";
 
 const SignIn: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Basic validation
@@ -19,14 +21,33 @@ const SignIn: React.FC = () => {
       return;
     }
 
-    // Handle sign-in logic here
-    console.log("Email:", email);
-    console.log("Password:", password);
+    // Prepare the form data
+    const formData = {
+      email,
+      password,
+    };
 
-    // Reset form
-    setEmail("");
-    setPassword("");
-    setError("");
+    try {
+      // Send a POST request to the backend API
+      const response = await fetch("/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to login");
+      }
+
+      // Handle successful login (e.g., redirect to profile page)
+      router.push("/profile");
+    } catch (error) {
+      setError(error.message);
+      console.error("Error:", error);
+    }
   };
 
   return (

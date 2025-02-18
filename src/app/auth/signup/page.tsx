@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import SimpleLayout from "@/components/Layouts/SimpleLayout";
+import { useRouter } from "next/router";
 
 const SignUp: React.FC = () => {
   const [name, setName] = useState("");
@@ -13,6 +14,7 @@ const SignUp: React.FC = () => {
   const [userClass, setUserClass] = useState("Candidate");
   const [company, setCompany] = useState("");
   const [error, setError] = useState("");
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,8 +53,8 @@ const SignUp: React.FC = () => {
         throw new Error("Failed to register");
       }
 
-      // Handle successful registration (e.g., redirect to login page)
-      console.log("Registration successful");
+      // Handle successful registration (e.g., redirect to home page)
+      router.push("/");
     } catch (error) {
       setError("Registration failed. Please try again.");
       console.error("Error:", error);
@@ -275,59 +277,3 @@ const SignUp: React.FC = () => {
 };
 
 export default SignUp;
-````
-const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
-const bodyParser = require('body-parser');
-const bcrypt = require('bcrypt');
-
-const app = express();
-const db = new sqlite3.Database('./database.sqlite'); // Use a file-based SQLite database
-
-app.use(bodyParser.json());
-
-// Create users table
-db.serialize(() => {
-  db.run(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL UNIQUE,
-      password TEXT NOT NULL,
-      userClass TEXT NOT NULL,
-      company TEXT
-    )
-  `);
-});
-
-// Register endpoint
-app.post('/api/register', async (req, res) => {
-  const { name, email, password, userClass, company } = req.body;
-
-  if (!name || !email || !password || !userClass || (userClass === 'Employer' && !company)) {
-    return res.status(400).json({ error: 'Please fill in all fields.' });
-  }
-
-  try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    db.run(
-      `INSERT INTO users (name, email, password, userClass, company) VALUES (?, ?, ?, ?, ?)`,
-
-      [name, email, hashedPassword, userClass, company],
-      function (err) {
-        if (err) {
-          return res.status(500).json({ error: 'Failed to register user.' });
-        }
-        res.status(201).json({ message: 'User registered successfully.' });
-      }
-    );
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to register user.' });
-  }
-});
-
-// Start the server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
