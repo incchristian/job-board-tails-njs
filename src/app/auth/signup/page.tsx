@@ -1,10 +1,11 @@
+// src/app/auth/signup/page.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import SimpleLayout from "@/components/Layouts/SimpleLayout";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 
 const SignUp: React.FC = () => {
   const [name, setName] = useState("");
@@ -50,24 +51,30 @@ const SignUp: React.FC = () => {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to register");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to register");
       }
 
-      // Handle successful registration (e.g., redirect to home page)
-      router.push("/");
+      // Handle successful registration
+      const result = await response.json();
+      console.log("Registration response:", result);
+      setError("");
+      router.push("/auth/signin"); // Updated to match signin page location
+
     } catch (error) {
-      setError("Registration failed. Please try again.");
+      setError(error.message || "Registration failed. Please try again.");
       console.error("Error:", error);
     }
 
-    // Reset form
-    setName("");
-    setEmail("");
-    setPassword("");
-    setConfirmPassword("");
-    setUserClass("Candidate");
-    setCompany("");
-    setError("");
+    // Reset form only if there’s an error
+    if (error) {
+      setName("");
+      setEmail("");
+      setPassword("");
+      setConfirmPassword("");
+      setUserClass("Candidate");
+      setCompany("");
+    }
   };
 
   return (
@@ -100,7 +107,7 @@ const SignUp: React.FC = () => {
               <div className="flex-grow mt-5 flex items-center justify-center w-full">
                 <div className="relative w-full h-full flex items-center justify-center">
                   <Image
-                    src="/images/photos/job-board.jpg" // Ensure this path is correct
+                    src="/images/photos/job-board.jpg"
                     alt="Job Board"
                     width={400}
                     height={200}
