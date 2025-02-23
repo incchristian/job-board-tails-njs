@@ -17,34 +17,34 @@ const SignIn: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    console.log("Signin attempt with:", { email, password }); // Debug
+    console.log("Signin attempt with:", { email, password });
 
     if (!email || !password) {
       setError("Please fill in all fields.");
-      console.log("Validation failed: Missing fields"); // Debug
+      console.log("Validation failed: Missing fields");
       return;
     }
 
     try {
-      console.log("Calling signIn..."); // Debug
+      console.log("Calling signIn...");
       const result = await signIn("credentials", {
         redirect: false,
         email,
         password,
       });
 
-      console.log("SignIn result:", result); // Debug
+      console.log("SignIn result:", result);
 
       if (result?.error) {
-        console.error("NextAuth error:", result.error); // Debug
+        console.error("NextAuth error:", result.error);
         throw new Error(result.error);
       }
 
-      console.log("Login successful, redirecting to /profile/edit"); // Debug
-      router.push("/profile/edit");
+      console.log("Login successful, redirecting to /pages/settings");
+      router.push("/pages/settings"); // Updated to match your new Edit Profile page
     } catch (error: any) {
       setError(error.message || "Failed to login");
-      console.error("Login error:", error); // Debug
+      console.error("Login error:", error);
     }
   };
 

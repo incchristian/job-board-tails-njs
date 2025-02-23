@@ -1,3 +1,4 @@
+// Likely in src/components/Layouts/Header.tsx or similar
 import Link from "next/link";
 import DarkModeSwitcher from "./DarkModeSwitcher";
 import DropdownMessage from "./DropdownMessage";

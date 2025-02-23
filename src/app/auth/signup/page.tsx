@@ -1,7 +1,6 @@
-// src/app/auth/signup/page.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import SimpleLayout from "@/components/Layouts/SimpleLayout";
@@ -20,9 +19,8 @@ const SignUp: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Basic validation
     if (!name || !email || !password || !confirmPassword || (userClass === "Employer" && !company)) {
-      setError("Please fill in all fields.");
+      setError("Please fill in all required fields.");
       return;
     }
 
@@ -31,7 +29,6 @@ const SignUp: React.FC = () => {
       return;
     }
 
-    // Prepare the form data
     const formData = {
       name,
       email,
@@ -41,7 +38,6 @@ const SignUp: React.FC = () => {
     };
 
     try {
-      // Send a POST request to the backend API
       const response = await fetch("/api/register", {
         method: "POST",
         headers: {
@@ -55,25 +51,13 @@ const SignUp: React.FC = () => {
         throw new Error(errorData.error || "Failed to register");
       }
 
-      // Handle successful registration
       const result = await response.json();
       console.log("Registration response:", result);
       setError("");
-      router.push("/auth/signin"); // Updated to match signin page location
-
+      router.push("/auth/signin");
     } catch (error) {
       setError(error.message || "Registration failed. Please try again.");
       console.error("Error:", error);
-    }
-
-    // Reset form only if there’s an error
-    if (error) {
-      setName("");
-      setEmail("");
-      setPassword("");
-      setConfirmPassword("");
-      setUserClass("Candidate");
-      setCompany("");
     }
   };
 
