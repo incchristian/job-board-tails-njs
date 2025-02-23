@@ -1,4 +1,5 @@
-module.exports = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   webpack: (config, { isServer }) => {
     // Exclude @mapbox/node-pre-gyp from being processed by Webpack
     config.externals = config.externals || [];
@@ -16,4 +17,9 @@ module.exports = {
 
     return config;
   },
+  images: {
+    domains: ["res.cloudinary.com"], // Allow Cloudinary images
+  },
 };
+
+module.exports = nextConfig;

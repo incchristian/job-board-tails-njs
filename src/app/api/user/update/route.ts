@@ -10,12 +10,11 @@ export async function GET(req: NextRequest) {
   let session = await getServerSession(authOptions);
   console.log("GET /api/user/update - Session from getServerSession:", session);
 
-  // Fallback to getToken if getServerSession fails
   if (!session || !session.user?.id) {
     const token = await getToken({ 
       req, 
       secret: process.env.NEXTAUTH_SECRET,
-      cookieName: "next-auth.session-token" // Explicitly specify cookie name
+      cookieName: "next-auth.session-token"
     });
     console.log("GET /api/user/update - Token from getToken:", token);
 
@@ -46,7 +45,7 @@ export async function GET(req: NextRequest) {
     });
 
     const user = await db.get(
-      "SELECT name, email, phoneNumber, username, bio FROM users WHERE id = ?",
+      "SELECT name, email, phoneNumber, username, bio, profilePicture FROM users WHERE id = ?",
       [session.user.id]
     );
     await db.close();
@@ -62,6 +61,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
+// POST handler unchanged
 export async function POST(req: NextRequest) {
   console.log("POST /api/user/update - Headers:", Object.fromEntries(req.headers));
   let session = await getServerSession(authOptions);
