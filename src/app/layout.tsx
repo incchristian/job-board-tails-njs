@@ -1,4 +1,3 @@
-// src/app/layout.tsx
 "use client";
 
 import "jsvectormap/dist/jsvectormap.css";
@@ -9,7 +8,8 @@ import "@/css/satoshi.css";
 import "@/css/simple-datatables.css";
 import "@/css/style.css";
 import React, { useEffect, useState } from "react";
-import { SessionProvider } from "next-auth/react"; // Add this import
+import { SessionProvider } from "next-auth/react";
+import { ProfileProvider } from "@/context/ProfileContext"; // Add this import
 import Loader from "@/components/common/Loader";
 
 export default function RootLayout({
@@ -27,10 +27,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body suppressHydrationWarning={true}>
-        <SessionProvider> {/* Wrap children with SessionProvider */}
-          <div className="dark:bg-boxdark-2 dark:text-bodydark">
-            {loading ? <Loader /> : children}
-          </div>
+        <SessionProvider>
+          <ProfileProvider> {/* Wrap children with ProfileProvider */}
+            <div className="dark:bg-boxdark-2 dark:text-bodydark">
+              {loading ? <Loader /> : children}
+            </div>
+          </ProfileProvider>
         </SessionProvider>
       </body>
     </html>

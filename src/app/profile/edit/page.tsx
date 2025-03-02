@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import DefaultLayout from "@/components/Layouts/DefaultLayout";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
+import { useProfile } from "@/context/ProfileContext";
 
 const EditProfile = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -19,52 +20,38 @@ const EditProfile = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(true);
-
-  const trigger = useRef(null);
-  const dropdown = useRef(null);
+  const [previewUrl, setPreviewUrl] = useState<string>('');
+  const { profilePic, setProfilePic } = useProfile();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchUserData = async () => {
-      if (!session?.user?.id) return;
+      if (!session?.user?.id) {
+        setLoading(false);
+        return;
+      }
 
       setLoading(true);
-      try {
-        const response = await fetch("/api/user/update", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || `Fetch failed with status: ${response.status}`);
-        }
-
+      const response = await fetch("/api/user/update", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      if (response.ok) {
         const data = await response.json();
         setName(data.name || "");
         setEmail(data.email || "");
         setPhoneNumber(data.phoneNumber || "");
         setUsername(data.username || "");
         setBio(data.bio || "");
-      } catch (err) {
-        setError(err.message || "Failed to load your profile data");
-      } finally {
-        setLoading(false);
+        if (data.profilePicture) setProfilePic(data.profilePicture);
       }
+      setLoading(false);
     };
 
-    if (status === "authenticated" && session) {
-      fetchUserData();
-    }
-  }, [session, status]);
-
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/auth/signin");
-    }
-  }, [status, router]);
+    if (status === "authenticated" && session) fetchUserData();
+    else if (status === "unauthenticated") router.push("/auth/signin");
+  }, [session, status, router, setProfilePic]);
 
   useEffect(() => {
     const clickHandler = ({ target }) => {
@@ -84,36 +71,53 @@ const EditProfile = () => {
     return () => document.removeEventListener("keydown", keyHandler);
   }, [dropdownOpen]);
 
-  if (status === "loading" || loading) return <div>Loading...</div>;
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleImageSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (previewUrl) {
+      const response = await fetch('/api/user/update-picture', {
+        method: 'POST',
+        body: JSON.stringify({ image: previewUrl }),
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      if (response.ok) {
+        setProfilePic(previewUrl);
+        setSuccess('Profile picture updated successfully!');
+        setPreviewUrl('');
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      } else {
+        setError('Failed to update profile picture');
+      }
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
-
-    try {
-      const response = await fetch("/api/user/update", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ name, email, phoneNumber, username, bio }),
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || `Server error: ${response.status}`);
-      }
-
+    const response = await fetch("/api/user/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, phoneNumber, username, bio }),
+      credentials: "include",
+    });
+    if (response.ok) {
       await update({ name, email });
       setSuccess("Profile updated successfully!");
-
       const fetchResponse = await fetch("/api/user/update", {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         credentials: "include",
       });
       if (fetchResponse.ok) {
@@ -124,10 +128,12 @@ const EditProfile = () => {
         setUsername(data.username || "");
         setBio(data.bio || "");
       }
-    } catch (err) {
-      setError(err.message || "Failed to save changes");
+    } else {
+      setError("Failed to save changes");
     }
   };
+
+  if (status === "loading" || loading) return <div>Loading...</div>;
 
   return (
     <DefaultLayout>
@@ -270,22 +276,41 @@ const EditProfile = () => {
                 <h3 className="font-medium text-black dark:text-white">Your Photo</h3>
               </div>
               <div className="p-7">
-                <form action="#">
+                <form onSubmit={handleImageSubmit}>
                   <div className="mb-4 flex items-center gap-3">
                     <div className="h-14 w-14 rounded-full">
-                      <Image src={"/images/user/user-03.png"} width={55} height={55} alt="User" />
+                      <Image 
+                        src={previewUrl || profilePic} 
+                        width={55} 
+                        height={55} 
+                        alt="User" 
+                      />
                     </div>
                     <div>
                       <span className="mb-1.5 text-black dark:text-white">Edit your photo</span>
                       <span className="flex gap-2.5">
-                        <button className="text-sm hover:text-primary">Delete</button>
-                        <button className="text-sm hover:text-primary">Update</button>
+                        <button 
+                          type="button"
+                          className="text-sm hover:text-primary"
+                          onClick={() => {
+                            setPreviewUrl('');
+                            if (fileInputRef.current) fileInputRef.current.value = '';
+                          }}
+                        >
+                          Delete
+                        </button>
                       </span>
                     </div>
                   </div>
 
                   <div id="FileUpload" className="relative mb-5.5 block w-full cursor-pointer appearance-none rounded border border-dashed border-primary bg-gray px-4 py-4 dark:bg-meta-4 sm:py-7.5">
-                    <input type="file" accept="image/*" className="absolute inset-0 z-50 m-0 h-full w-full cursor-pointer p-0 opacity-0 outline-none" />
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      ref={fileInputRef}
+                      onChange={handleImageChange}
+                      className="absolute inset-0 z-50 m-0 h-full w-full cursor-pointer p-0 opacity-0 outline-none" 
+                    />
                     <div className="flex flex-col items-center justify-center space-y-3">
                       <span className="flex h-10 w-10 items-center justify-center rounded-full border border-stroke bg-white dark:border-strokedark dark:bg-boxdark">
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -301,8 +326,19 @@ const EditProfile = () => {
                   </div>
 
                   <div className="flex justify-end gap-4.5">
-                    <button className="flex justify-center rounded border border-stroke px-6 py-2 font-medium text-black hover:shadow-1 dark:border-strokedark dark:text-white" type="submit">Cancel</button>
-                    <button className="flex justify-center rounded bg-primary px-6 py-2 font-medium text-gray hover:bg-opacity-90" type="submit">Save</button>
+                    <button 
+                      className="flex justify-center rounded border border-stroke px-6 py-2 font-medium text-black hover:shadow-1 dark:border-strokedark dark:text-white" 
+                      type="button"
+                      onClick={() => setPreviewUrl('')}
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      className="flex justify-center rounded bg-primary px-6 py-2 font-medium text-gray hover:bg-opacity-90" 
+                      type="submit"
+                    >
+                      Save
+                    </button>
                   </div>
                 </form>
               </div>

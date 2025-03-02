@@ -1,19 +1,17 @@
-// src/components/Header/DropdownUser.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useSession } from "next-auth/react"; // For session data
+import { useSession } from "next-auth/react";
 
-const DropdownUser = () => {
+const DropdownUser = ({ profilePic }: { profilePic: string }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const { data: session } = useSession(); // Get session data
+  const { data: session } = useSession();
 
   const trigger = useRef<any>(null);
   const dropdown = useRef<any>(null);
 
-  // close on click outside
   useEffect(() => {
     const clickHandler = ({ target }: MouseEvent) => {
       if (!dropdown.current) return;
@@ -29,7 +27,6 @@ const DropdownUser = () => {
     return () => document.removeEventListener("click", clickHandler);
   });
 
-  // close if the esc key is pressed
   useEffect(() => {
     const keyHandler = ({ keyCode }: KeyboardEvent) => {
       if (!dropdownOpen || keyCode !== 27) return;
@@ -39,9 +36,8 @@ const DropdownUser = () => {
     return () => document.removeEventListener("keydown", keyHandler);
   });
 
-  // Sync name with Edit Profile, set class to "Candidate"
-  const userName = session?.user?.name || "Thomas Anree"; // Syncs with Edit Profile
-  const userClass = "Candidate"; // Static as requested
+  const userName = session?.user?.name || "Thomas Anree";
+  const userClass = "Candidate";
 
   return (
     <div className="relative">
@@ -53,20 +49,17 @@ const DropdownUser = () => {
       >
         <span className="hidden text-right lg:block">
           <span className="block text-sm font-medium text-black dark:text-white">
-            {userName} {/* Synced with Edit Profile */}
+            {userName}
           </span>
-          <span className="block text-xs">{userClass} {/* Set to "Candidate" */}</span>
+          <span className="block text-xs">{userClass}</span>
         </span>
 
         <span className="h-12 w-12 rounded-full">
           <Image
             width={112}
             height={112}
-            src={"/images/user/user-01.png"}
-            style={{
-              width: "auto",
-              height: "auto",
-            }}
+            src={profilePic}
+            style={{ width: "auto", height: "auto" }}
             alt="User"
           />
         </span>
@@ -88,7 +81,6 @@ const DropdownUser = () => {
         </svg>
       </Link>
 
-      {/* <!-- Dropdown Start --> */}
       <div
         ref={dropdown}
         onFocus={() => setDropdownOpen(true)}
@@ -216,7 +208,6 @@ const DropdownUser = () => {
           Log Out
         </button>
       </div>
-      {/* <!-- Dropdown End --> */}
     </div>
   );
 };
