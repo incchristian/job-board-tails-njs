@@ -38,8 +38,18 @@ export const authOptions = {
 
           const passwordMatch = await bcrypt.compare(credentials.password, user.password);
           if (passwordMatch) {
-            console.log("User authenticated:", { id: String(user.id), name: user.name, email: user.email });
-            return { id: String(user.id), name: user.name, email: user.email };
+            console.log("User authenticated:", {
+              id: String(user.id),
+              name: user.name,
+              email: user.email,
+              userClass: user.userClass, // Add userClass
+            });
+            return {
+              id: String(user.id),
+              name: user.name,
+              email: user.email,
+              userClass: user.userClass, // Include userClass
+            };
           }
           console.log("Password mismatch for:", credentials.email);
           return null;
@@ -57,6 +67,7 @@ export const authOptions = {
         token.id = user.id;
         token.name = user.name;
         token.email = user.email;
+        token.userClass = user.userClass; // Add userClass to token
       }
       return token;
     },
@@ -66,6 +77,7 @@ export const authOptions = {
         session.user.id = token.id;
         session.user.name = token.name;
         session.user.email = token.email;
+        session.user.userClass = token.userClass; // Add userClass to session
       }
       return session;
     },
@@ -75,7 +87,7 @@ export const authOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
   session: {
-    strategy: "jwt", // Explicitly use JWT strategy
+    strategy: "jwt",
   },
 };
 

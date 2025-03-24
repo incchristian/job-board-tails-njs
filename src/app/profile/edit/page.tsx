@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
@@ -17,12 +17,19 @@ const EditProfile = () => {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
+  const [company, setCompany] = useState("");
+  const [logo, setLogo] = useState(null);
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(true);
-  const [previewUrl, setPreviewUrl] = useState<string>('');
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [resumeFile, setResumeFile] = useState(null);
+  const [resumePath, setResumePath] = useState("");
   const { profilePic, setProfilePic } = useProfile();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef(null);
+  const resumeInputRef = useRef(null);
+  const logoInputRef = useRef(null);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -44,7 +51,10 @@ const EditProfile = () => {
         setPhoneNumber(data.phoneNumber || "");
         setUsername(data.username || "");
         setBio(data.bio || "");
+        setCompany(data.company || "");
         if (data.profilePicture) setProfilePic(data.profilePicture);
+        if (data.resumePath) setResumePath(data.resumePath);
+        if (data.logoPath) setLogoPreviewUrl(data.logoPath); // Assuming logoPath is stored
       }
       setLoading(false);
     };
@@ -55,7 +65,12 @@ const EditProfile = () => {
 
   useEffect(() => {
     const clickHandler = ({ target }) => {
-      if (!dropdown.current || !dropdownOpen || dropdown.current.contains(target) || trigger.current.contains(target)) return;
+      if (
+        !dropdownOpen ||
+        !document.getElementById("dropdown")?.contains(target) ||
+        !document.getElementById("trigger")?.contains(target)
+      )
+        return;
       setDropdownOpen(false);
     };
     document.addEventListener("click", clickHandler);
@@ -71,34 +86,92 @@ const EditProfile = () => {
     return () => document.removeEventListener("keydown", keyHandler);
   }, [dropdownOpen]);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPreviewUrl(reader.result as string);
+        setPreviewUrl(reader.result);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleImageSubmit = async (e: React.FormEvent) => {
+  const handleResumeChange = (e) => {
+    const file = e.target.files?.[0];
+    if (
+      file &&
+      (file.type === "application/pdf" ||
+        file.type === "application/msword" ||
+        file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    ) {
+      setResumeFile(file);
+      setError("");
+    } else {
+      setError("Please upload a .doc, .docx, or .pdf file.");
+      setResumeFile(null);
+    }
+  };
+
+  const handleLogoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setLogo(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setLogoPreviewUrl(reader.result);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleImageSubmit = async (e) => {
     e.preventDefault();
     if (previewUrl) {
-      const response = await fetch('/api/user/update-picture', {
-        method: 'POST',
+      const response = await fetch("/api/user/update-picture", {
+        method: "POST",
         body: JSON.stringify({ image: previewUrl }),
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
       });
       if (response.ok) {
         setProfilePic(previewUrl);
-        setSuccess('Profile picture updated successfully!');
-        setPreviewUrl('');
-        if (fileInputRef.current) fileInputRef.current.value = '';
+        setSuccess("Profile picture updated successfully!");
+        setPreviewUrl("");
+        if (fileInputRef.current) fileInputRef.current.value = "";
       } else {
-        setError('Failed to update profile picture');
+        setError("Failed to update profile picture");
       }
+    }
+  };
+
+  const handleResumeSubmit = async (e) => {
+    e.preventDefault();
+    if (!resumeFile) {
+      setError("No file selected.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("resume", resumeFile);
+
+    try {
+      const response = await fetch("/api/user/upload-resume", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setSuccess("Resume uploaded successfully!");
+        setResumePath(data.filePath);
+        setResumeFile(null);
+        if (resumeInputRef.current) resumeInputRef.current.value = "";
+      } else {
+        setError(data.message || "Failed to upload resume");
+      }
+    } catch (err) {
+      setError("An error occurred while uploading the resume");
+      console.error(err);
     }
   };
 
@@ -106,10 +179,39 @@ const EditProfile = () => {
     e.preventDefault();
     setError("");
     setSuccess("");
+
+    let logoUrl = logoPreviewUrl;
+    if (logo && (session?.user?.userClass === "Employer" || session?.user?.userClass === "Recruiter")) {
+      const formData = new FormData();
+      formData.append("file", logo);
+      formData.append("upload_preset", "job_logos");
+
+      const uploadResponse = await fetch(
+        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
+        { method: "POST", body: formData }
+      );
+      const uploadData = await uploadResponse.json();
+      if (!uploadData.secure_url) {
+        setError("Failed to upload logo");
+        return;
+      }
+      logoUrl = uploadData.secure_url;
+    }
+
+    const profileData = {
+      name,
+      email,
+      phoneNumber,
+      username,
+      bio,
+      company,
+      ...(session?.user?.userClass === "Employer" || session?.user?.userClass === "Recruiter" ? { logoPath: logoUrl || null } : {}),
+    };
+
     const response = await fetch("/api/user/update", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, phoneNumber, username, bio }),
+      body: JSON.stringify(profileData),
       credentials: "include",
     });
     if (response.ok) {
@@ -127,6 +229,8 @@ const EditProfile = () => {
         setPhoneNumber(data.phoneNumber || "");
         setUsername(data.username || "");
         setBio(data.bio || "");
+        setCompany(data.company || "");
+        if (data.logoPath) setLogoPreviewUrl(data.logoPath);
       }
     } else {
       setError("Failed to save changes");
@@ -134,6 +238,8 @@ const EditProfile = () => {
   };
 
   if (status === "loading" || loading) return <div>Loading...</div>;
+
+  const isEmployerOrRecruiter = session?.user?.userClass === "Employer" || session?.user?.userClass === "Recruiter";
 
   return (
     <DefaultLayout>
@@ -149,7 +255,9 @@ const EditProfile = () => {
                 <form onSubmit={handleSubmit}>
                   <div className="mb-5.5 flex flex-col gap-5.5 sm:flex-row">
                     <div className="w-full sm:w-1/2">
-                      <label className="mb-3 block text-sm font-medium text-black dark:text-white" htmlFor="fullName">Full Name</label>
+                      <label className="mb-3 block text-sm font-medium text-black dark:text-white" htmlFor="fullName">
+                        Full Name
+                      </label>
                       <div className="relative">
                         <span className="absolute left-4.5 top-4">
                           <svg className="fill-current" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -172,7 +280,9 @@ const EditProfile = () => {
                     </div>
 
                     <div className="w-full sm:w-1/2">
-                      <label className="mb-3 block text-sm font-medium text-black dark:text-white" htmlFor="phoneNumber">Phone Number</label>
+                      <label className="mb-3 block text-sm font-medium text-black dark:text-white" htmlFor="phoneNumber">
+                        Phone Number
+                      </label>
                       <input
                         className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
                         type="text"
@@ -186,7 +296,9 @@ const EditProfile = () => {
                   </div>
 
                   <div className="mb-5.5">
-                    <label className="mb-3 block text-sm font-medium text-black dark:text-white" htmlFor="emailAddress">Email Address</label>
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white" htmlFor="emailAddress">
+                      Email Address
+                    </label>
                     <div className="relative">
                       <span className="absolute left-4.5 top-4">
                         <svg className="fill-current" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -209,7 +321,9 @@ const EditProfile = () => {
                   </div>
 
                   <div className="mb-5.5">
-                    <label className="mb-3 block text-sm font-medium text-black dark:text-white" htmlFor="Username">Username</label>
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white" htmlFor="Username">
+                      Username
+                    </label>
                     <input
                       className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
                       type="text"
@@ -221,8 +335,27 @@ const EditProfile = () => {
                     />
                   </div>
 
+                  {session?.user?.userClass === "Employer" && (
+                    <div className="mb-5.5">
+                      <label className="mb-3 block text-sm font-medium text-black dark:text-white" htmlFor="company">
+                        Company
+                      </label>
+                      <input
+                        className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
+                        type="text"
+                        name="company"
+                        id="company"
+                        placeholder="Enter your company name"
+                        value={company}
+                        onChange={(e) => setCompany(e.target.value)}
+                      />
+                    </div>
+                  )}
+
                   <div className="mb-5.5">
-                    <label className="mb-3 block text-sm font-medium text-black dark:text-white" htmlFor="bio">BIO</label>
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white" htmlFor="bio">
+                      BIO
+                    </label>
                     <div className="relative">
                       <span className="absolute left-4.5 top-4">
                         <svg className="fill-current" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -270,46 +403,92 @@ const EditProfile = () => {
               </div>
             </div>
           </div>
-          <div className="col-span-5 xl:col-span-2">
-            <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-              <div className="border-b border-stroke px-7 py-4 dark:border-strokedark">
-                <h3 className="font-medium text-black dark:text-white">Your Photo</h3>
-              </div>
-              <div className="p-7">
-                <form onSubmit={handleImageSubmit}>
-                  <div className="mb-4 flex items-center gap-3">
-                    <div className="h-14 w-14 rounded-full">
-                      <Image 
-                        src={previewUrl || profilePic} 
-                        width={55} 
-                        height={55} 
-                        alt="User" 
-                      />
-                    </div>
-                    <div>
-                      <span className="mb-1.5 text-black dark:text-white">Edit your photo</span>
-                      <span className="flex gap-2.5">
-                        <button 
-                          type="button"
-                          className="text-sm hover:text-primary"
-                          onClick={() => {
-                            setPreviewUrl('');
-                            if (fileInputRef.current) fileInputRef.current.value = '';
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </span>
-                    </div>
-                  </div>
 
-                  <div id="FileUpload" className="relative mb-5.5 block w-full cursor-pointer appearance-none rounded border border-dashed border-primary bg-gray px-4 py-4 dark:bg-meta-4 sm:py-7.5">
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      ref={fileInputRef}
-                      onChange={handleImageChange}
-                      className="absolute inset-0 z-50 m-0 h-full w-full cursor-pointer p-0 opacity-0 outline-none" 
+          <div className="col-span-5 xl:col-span-2">
+            {session?.user?.userClass === "Candidate" && (
+              <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
+                <div className="border-b border-stroke px-7 py-4 dark:border-strokedark">
+                  <h3 className="font-medium text-black dark:text-white">Your Resume</h3>
+                </div>
+                <div className="p-7">
+                  <div className="mt-7">
+                    <form onSubmit={handleResumeSubmit}>
+                      <div className="relative mb-5.5 block w-full cursor-pointer appearance-none rounded border border-dashed border-primary bg-gray px-4 py-4 dark:bg-meta-4 sm:py-7.5">
+                        <input
+                          type="file"
+                          accept=".doc,.docx,application/pdf"
+                          ref={resumeInputRef}
+                          onChange={handleResumeChange}
+                          className="absolute inset-0 z-50 m-0 h-full w-full cursor-pointer p-0 opacity-0 outline-none"
+                        />
+                        <div className="flex flex-col items-center justify-center space-y-3">
+                          <span className="flex h-10 w-10 items-center justify-center rounded-full border border-stroke bg-white dark:border-strokedark dark:bg-boxdark">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path fillRule="evenodd" clipRule="evenodd" d="M1.99967 9.33337C2.36786 9.33337 2.66634 9.63185 2.66634 10V12.6667C2.66634 12.8435 2.73658 13.0131 2.8616 13.1381C2.98663 13.2631 3.1562 13.3334 3.33301 13.3334H12.6663C12.8431 13.3334 13.0127 13.2631 13.1377 13.1381C13.2628 13.0131 13.333 12.8435 13.333 12.6667V10C13.333 9.63185 13.6315 9.33337 13.9997 9.33337C14.3679 9.33337 14.6663 9.63185 14.6663 10V12.6667C14.6663 13.1971 14.4556 13.7058 14.0806 14.0809C13.7055 14.456 13.1968 14.6667 12.6663 14.6667H3.33301C2.80257 14.6667 2.29387 14.456 1.91879 14.0809C1.54372 13.7058 1.33301 13.1971 1.33301 12.6667V10C1.33301 9.63185 1.63148 9.33337 1.99967 9.33337Z" fill="#3C50E0" />
+                              <path fillRule="evenodd" clipRule="evenodd" d="M7.5286 1.52864C7.78894 1.26829 8.21106 1.26829 8.4714 1.52864L11.8047 4.86197C12.0651 5.12232 12.0651 5.54443 11.8047 5.80478C11.5444 6.06513 11.1223 6.06513 10.8619 5.80478L8 2.94285L5.13807 5.80478C4.87772 6.06513 4.45561 6.06513 4.19526 5.80478C3.93491 5.54443 3.93491 5.12232 4.19526 4.86197L7.5286 1.52864Z" fill="#3C50E0" />
+                              <path fillRule="evenodd" clipRule="evenodd" d="M7.99967 1.33337C8.36786 1.33337 8.66634 1.63185 8.66634 2.00004V10C8.66634 10.3682 8.36786 10.6667 7.99967 10.6667C7.63148 10.6667 7.33301 10.3682 7.33301 10V2.00004C7.33301 1.63185 7.63148 1.33337 7.99967 1.33337Z" fill="#3C50E0" />
+                            </svg>
+                          </span>
+                          <p><span className="text-primary">Upload My Resume</span></p>
+                          <p className="mt-1.5">.doc, .docx, or .pdf</p>
+                        </div>
+                      </div>
+
+                      {resumePath && (
+                        <p className="mb-4">
+                          <a
+                            href={resumePath}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline"
+                          >
+                            View Uploaded Resume
+                          </a>
+                        </p>
+                      )}
+
+                      <div className="flex justify-end gap-4.5">
+                        <button
+                          className="flex justify-center rounded border border-stroke px-6 py-2 font-medium text-black hover:shadow-1 dark:border-strokedark dark:text-white"
+                          type="button"
+                          onClick={() => setResumeFile(null)}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          className="flex justify-center rounded bg-primary px-6 py-2 font-medium text-gray hover:bg-opacity-90"
+                          type="submit"
+                          disabled={!resumeFile}
+                        >
+                          Save
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {isEmployerOrRecruiter && (
+              <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark mt-6">
+                <div className="border-b border-stroke px-7 py-4 dark:border-strokedark">
+                  <h3 className="font-medium text-black dark:text-white">Company Logo</h3>
+                </div>
+                <div className="p-7">
+                  <div className="mb-4 flex items-center gap-3">
+                    {logoPreviewUrl ? (
+                      <Image src={logoPreviewUrl} width={112} height={112} alt="Company Logo" />
+                    ) : (
+                      <div className="h-12 w-12 rounded-full bg-gray-2 dark:bg-meta-4"></div>
+                    )}
+                  </div>
+                  <div className="relative mb-5.5 block w-full cursor-pointer appearance-none rounded border border-dashed border-primary bg-gray px-4 py-4 dark:bg-meta-4 sm:py-7.5">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      ref={logoInputRef}
+                      onChange={handleLogoChange}
+                      className="absolute inset-0 z-50 m-0 h-full w-full cursor-pointer p-0 opacity-0 outline-none"
                     />
                     <div className="flex flex-col items-center justify-center space-y-3">
                       <span className="flex h-10 w-10 items-center justify-center rounded-full border border-stroke bg-white dark:border-strokedark dark:bg-boxdark">
@@ -319,30 +498,13 @@ const EditProfile = () => {
                           <path fillRule="evenodd" clipRule="evenodd" d="M7.99967 1.33337C8.36786 1.33337 8.66634 1.63185 8.66634 2.00004V10C8.66634 10.3682 8.36786 10.6667 7.99967 10.6667C7.63148 10.6667 7.33301 10.3682 7.33301 10V2.00004C7.33301 1.63185 7.63148 1.33337 7.99967 1.33337Z" fill="#3C50E0" />
                         </svg>
                       </span>
-                      <p><span className="text-primary">Click to upload</span> or drag and drop</p>
-                      <p className="mt-1.5">SVG, PNG, JPG or GIF</p>
-                      <p>(max, 800 X 800px)</p>
+                      <p><span className="text-primary">Upload Company Logo</span></p>
+                      <p className="mt-1.5">Image (max 112x112px)</p>
                     </div>
                   </div>
-
-                  <div className="flex justify-end gap-4.5">
-                    <button 
-                      className="flex justify-center rounded border border-stroke px-6 py-2 font-medium text-black hover:shadow-1 dark:border-strokedark dark:text-white" 
-                      type="button"
-                      onClick={() => setPreviewUrl('')}
-                    >
-                      Cancel
-                    </button>
-                    <button 
-                      className="flex justify-center rounded bg-primary px-6 py-2 font-medium text-gray hover:bg-opacity-90" 
-                      type="submit"
-                    >
-                      Save
-                    </button>
-                  </div>
-                </form>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
