@@ -1,61 +1,137 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import DefaultLayout from "@/components/Layouts/DefaultLayout";
 import Image from "next/image";
 
+const countries = ["Canada", "United States"];
+const countryCodes: { [key: string]: string } = {
+  "Canada": "ca",
+  "United States": "us",
+};
+const canadaProvinces = [
+  "Alberta", "British Columbia", "Manitoba", "New Brunswick", "Newfoundland and Labrador",
+  "Nova Scotia", "Ontario", "Prince Edward Island", "Quebec", "Saskatchewan",
+];
+const usStates = [
+  "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware",
+  "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky",
+  "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi",
+  "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico",
+  "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania",
+  "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont",
+  "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming",
+];
+
 const PostJobPage = () => {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [location, setLocation] = useState("");
-  const [logo, setLogo] = useState(null);
+  const [country, setCountry] = useState("Canada");
+  const [state, setState] = useState("");
+  const [city, setCity] = useState("");
+  const [street, setStreet] = useState("");
+  const [cities, setCities] = useState<string[]>([]);
+  const [postalCode, setPostalCode] = useState("");
+  const [logo, setLogo] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const autocompleteRef = useRef<HTMLInputElement>(null);
 
-  const handleLogoChange = (e) => {
+  useEffect(() => {
+    if (state) {
+      const fetchCities = async () => {
+        const url = `/api/cities?input=${encodeURIComponent(state)}&country=${country}`;
+        try {
+          const response = await fetch(url);
+          if (!response.ok) throw new Error("Failed to fetch cities");
+          const data = await response.json();
+          setCities(data.status === "OK" ? data.cities : []);
+        } catch (err: any) {
+          setCities([]);
+          setError(`Error fetching cities: ${err.message}`);
+        }
+      };
+      fetchCities();
+    } else {
+      setCities([]);
+      setCity("");
+    }
+  }, [state, country]);
+
+  useEffect(() => {
+    if (window.google && autocompleteRef.current) {
+      const autocomplete = new window.google.maps.places.Autocomplete(autocompleteRef.current, {
+        types: ["address"],
+        componentRestrictions: { country: countryCodes[country] || "ca" },
+        fields: ["formatted_address", "geometry"],
+      });
+
+      autocomplete.addListener("place_changed", () => {
+        const place = autocomplete.getPlace();
+        if (place.formatted_address && place.geometry) {
+          setStreet(place.formatted_address);
+          const lat = place.geometry.location?.lat();
+          const lng = place.geometry.location?.lng();
+          console.log("Selected place:", { street: place.formatted_address, lat, lng });
+        }
+      });
+    }
+  }, [country]);
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setLogo(file);
       const reader = new FileReader();
-      reader.onloadend = () => setPreviewUrl(reader.result);
+      reader.onloadend = () => setPreviewUrl(reader.result as string);
       reader.readAsDataURL(file);
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setSuccess("");
+
+    const location = `${street ? street + ", " : ""}${city}, ${state}, ${country}${postalCode ? " " + postalCode : ""}`;
+    console.log("Generated location:", location);
+
+    let lat, lng;
+    try {
+      const response = await fetch(`/api/geocode?address=${encodeURIComponent(location)}`);
+      if (!response.ok) throw new Error("Geocoding failed");
+      const data = await response.json();
+      if (data.status === "OK" && data.results.length > 0) {
+        lat = data.results[0].geometry.location.lat;
+        lng = data.results[0].geometry.location.lng;
+      } else {
+        throw new Error("No geocoding results");
+      }
+    } catch (err: any) {
+      setError(`Failed to geocode location: ${err.message}`);
+      return;
+    }
 
     let logoUrl = "";
     if (logo) {
       const formData = new FormData();
       formData.append("file", logo);
       formData.append("upload_preset", "job_logos");
-
       try {
-        console.log("Uploading logo to Cloudinary...");
         const uploadResponse = await fetch(
           `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
           { method: "POST", body: formData }
         );
         const uploadData = await uploadResponse.json();
-        console.log("Cloudinary response:", uploadData);
-        if (uploadData.secure_url) {
-          logoUrl = uploadData.secure_url;
-        } else {
-          setError("Failed to upload logo to Cloudinary");
-          return;
-        }
+        logoUrl = uploadData.secure_url || "";
       } catch (err) {
-        setError("Error uploading logo");
-        console.error("Cloudinary upload error:", err);
+        setError("Failed to upload logo");
         return;
       }
     }
@@ -66,31 +142,36 @@ const PostJobPage = () => {
       location,
       employerId: session?.user?.id,
       logoPath: logoUrl || null,
+      lat,
+      lng,
+      country,
+      state,
+      street,
+      city,
+      postalCode,
     };
 
-    try {
-      console.log("Posting job to /api/jobs with data:", jobData);
-      const response = await fetch("/api/jobs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(jobData),
-      });
-      const responseData = await response.json();
-      console.log("API response:", responseData);
-      if (response.ok) {
-        setSuccess("Job posted successfully!");
-        setTitle("");
-        setDescription("");
-        setLocation("");
-        setLogo(null);
-        setPreviewUrl("");
-        setTimeout(() => router.push("/jobs"), 1000);
-      } else {
-        setError(responseData.message || "Failed to post job");
-      }
-    } catch (err) {
-      setError("An error occurred while posting the job");
-      console.error("API request error:", err);
+    const response = await fetch("/api/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(jobData),
+    });
+
+    if (response.ok) {
+      setSuccess("Job posted successfully!");
+      setTitle("");
+      setDescription("");
+      setCountry("Canada");
+      setState("");
+      setCity("");
+      setStreet("");
+      setPostalCode("");
+      setLogo(null);
+      setPreviewUrl("");
+      setTimeout(() => router.push("/jobs"), 1000);
+    } else {
+      const data = await response.json();
+      setError(`Failed to post job: ${data.message || "Unknown error"}`);
     }
   };
 
@@ -145,18 +226,100 @@ const PostJobPage = () => {
                   </div>
 
                   <div className="mb-5.5">
-                    <label className="mb-3 block text-sm font-medium text-black dark:text-white" htmlFor="location">
-                      Location
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white" htmlFor="country">
+                      Country
+                    </label>
+                    <select
+                      className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
+                      name="country"
+                      id="country"
+                      value={country}
+                      onChange={(e) => {
+                        setCountry(e.target.value);
+                        setState("");
+                        setCity("");
+                        setStreet("");
+                      }}
+                      required
+                    >
+                      {countries.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="mb-5.5">
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white" htmlFor="state">
+                      State/Province
+                    </label>
+                    <select
+                      className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
+                      name="state"
+                      id="state"
+                      value={state}
+                      onChange={(e) => {
+                        setState(e.target.value);
+                        setCity("");
+                        setStreet("");
+                      }}
+                      required
+                    >
+                      <option value="">Select {country === "Canada" ? "Province" : "State"}</option>
+                      {(country === "Canada" ? canadaProvinces : usStates).map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="mb-5.5">
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white" htmlFor="city">
+                      City
+                    </label>
+                    <select
+                      className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
+                      name="city"
+                      id="city"
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      required
+                      disabled={!state}
+                    >
+                      <option value="">Select City</option>
+                      {cities.map((c, index) => (
+                        <option key={`${c}-${index}`} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="mb-5.5">
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white" htmlFor="street">
+                      Street Address
+                    </label>
+                    <input
+                      ref={autocompleteRef}
+                      className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
+                      type="text"
+                      name="street"
+                      id="street"
+                      placeholder="Enter street address (e.g., 123 Main St)"
+                      value={street}
+                      onChange={(e) => setStreet(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="mb-5.5">
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white" htmlFor="postalCode">
+                      Postal/ZIP Code (Optional)
                     </label>
                     <input
                       className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
                       type="text"
-                      name="location"
-                      id="location"
-                      placeholder="Enter job location"
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                      required
+                      name="postalCode"
+                      id="postalCode"
+                      placeholder="Enter postal/ZIP code"
+                      value={postalCode}
+                      onChange={(e) => setPostalCode(e.target.value)}
                     />
                   </div>
 

@@ -1,7 +1,9 @@
 "use client";
+
 import React, { useState, ReactNode } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
+import Script from "next/script";
 
 export default function DefaultLayout({
   children,
@@ -9,8 +11,15 @@ export default function DefaultLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
     <>
+      <Script
+        src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places,marker`}
+        strategy="lazyOnload"
+        onLoad={() => console.log("Global Google Maps API loaded")}
+        onError={(e) => console.error("Failed to load Google Maps API:", e)}
+      />
       {/* <!-- ===== Page Wrapper Start ===== --> */}
       <div className="flex h-screen overflow-hidden">
         {/* <!-- ===== Sidebar Start ===== --> */}

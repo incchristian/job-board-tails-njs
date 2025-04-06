@@ -6,7 +6,7 @@ import DefaultLayout from "@/components/Layouts/DefaultLayout";
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import JobDropdown from "./JobDropdown"; // New Client Component
+import JobDropdown from "./JobDropdown";
 
 async function fetchMyJobs(userId) {
   const db = await open({
@@ -14,7 +14,7 @@ async function fetchMyJobs(userId) {
     driver: sqlite3.Database,
   });
   const jobs = await db.all(
-    "SELECT id, title, description, location FROM jobs WHERE employerId = ?",
+    "SELECT id, title, description, location, employerId FROM jobs WHERE employerId = ?",
     [userId]
   );
   await db.close();
@@ -32,7 +32,7 @@ async function deleteJob(jobId) {
 
 export default async function MyJobsPage({ searchParams }) {
   const session = await getServerSession(authOptions);
-  const userId = session?.user?.id; // Adjust if needed
+  const userId = session?.user?.id;
   const userClass = session?.user?.userClass || "Candidate";
 
   if (!session) {
@@ -70,8 +70,14 @@ export default async function MyJobsPage({ searchParams }) {
     <DefaultLayout>
       <div className="container mx-auto p-6">
         <h1 className="text-3xl font-bold mb-6">My Job Listings</h1>
+        <p className="text-gray-500 mb-4">Your User ID: {userId}</p> {/* Debug */}
         {jobs.length === 0 ? (
-          <p className="text-gray-600">You haven’t posted any jobs yet.</p>
+          <p className="text-gray-600">
+            You haven’t posted any jobs yet.{" "}
+            <Link href="/jobs/post" className="text-primary hover:underline">
+              Post a job now
+            </Link>
+          </p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {jobs.map((job) => (
@@ -84,6 +90,15 @@ export default async function MyJobsPage({ searchParams }) {
                   {job.description}
                 </p>
                 <p className="text-gray-500 text-sm">📍 {job.location}</p>
+                <p className="text-gray-400 text-xs">Job ID: {job.id}, Employer ID: {job.employerId}</p> {/* Debug */}
+                <div className="mt-2">
+                  <Link
+                    href={`/jobs/edit/${job.id}`}
+                    className="text-primary hover:underline text-sm"
+                  >
+                    Edit
+                  </Link>
+                </div>
                 <JobDropdown jobId={job.id} />
               </div>
             ))}

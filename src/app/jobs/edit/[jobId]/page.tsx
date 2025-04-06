@@ -2,7 +2,7 @@ import sqlite3 from "sqlite3";
 import { open } from "sqlite";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import EditJobClient from "./EditJobClient"; // Use your provided component
+import EditJobClient from "./EditJobClient";
 
 async function fetchJob(jobId) {
   const db = await open({
@@ -10,7 +10,9 @@ async function fetchJob(jobId) {
     driver: sqlite3.Database,
   });
   const job = await db.get(
-    "SELECT id, title, description, location, logoPath, employerId FROM jobs WHERE id = ?",
+    `SELECT id, title, description, location, employerId, logoPath, 
+            lat, lng, country, state, street, city, postalCode 
+     FROM jobs WHERE id = ?`,
     [jobId]
   );
   await db.close();

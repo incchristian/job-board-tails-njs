@@ -4,80 +4,162 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import DefaultLayout from "@/components/Layouts/DefaultLayout";
-import Script from "next/script";
 
 export default function EditJobClient({ initialJob, session }) {
   const router = useRouter();
   const [title, setTitle] = useState(initialJob?.title || "");
   const [description, setDescription] = useState(initialJob?.description || "");
-  const [location, setLocation] = useState(initialJob?.location || "");
+  const [address, setAddress] = useState(
+    `${initialJob?.street || ""}, ${initialJob?.city || ""}, ${initialJob?.state || ""}, ${initialJob?.country || ""}`
+  );
+  const [street, setStreet] = useState(initialJob?.street || "");
+  const [city, setCity] = useState(initialJob?.city || "");
+  const [state, setState] = useState(initialJob?.state || "");
+  const [country, setCountry] = useState(initialJob?.country || "");
+  const [postalCode, setPostalCode] = useState(initialJob?.postalCode || "");
+  const [lat, setLat] = useState(initialJob?.lat || null);
+  const [lng, setLng] = useState(initialJob?.lng || null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const autocompleteRef = useRef(null);
+  const autocompleteRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!session || session.user.userClass !== "Employer" || (initialJob && initialJob.employerId !== session.user.id)) {
-      router.push("/jobs");
+    if (!session) {
+      setError("Please log in to edit jobs");
+      return;
     }
-    if (!initialJob) setError("Job not found");
+    if (session.user.userClass !== "Employer") {
+      setError("Only employers can edit jobs");
+      return;
+    }
+    if (initialJob && String(initialJob.employerId) !== String(session.user.id)) {
+      setError("You can only edit your own jobs");
+      setTimeout(() => router.push("/jobs"), 3000);
+      return;
+    }
+    if (!initialJob) {
+      setError("Job not found");
+    }
   }, [session, initialJob, router]);
 
-  const initAutocomplete = () => {
-    if (window.google && autocompleteRef.current) {
-      const autocomplete = new window.google.maps.places.Autocomplete(autocompleteRef.current, {
-        types: ["address"],
-        fields: ["formatted_address"],
-      });
-      autocomplete.addListener("place_changed", () => {
-        const place = autocomplete.getPlace();
-        if (place.formatted_address) setLocation(place.formatted_address);
-      });
+  useEffect(() => {
+    const initAutocomplete = () => {
+      if (window.google && autocompleteRef.current) {
+        const autocomplete = new window.google.maps.places.Autocomplete(autocompleteRef.current, {
+          types: ["address"],
+          componentRestrictions: { country: ["ca", "us"] },
+          fields: ["address_components", "geometry", "formatted_address"],
+        });
+        autocomplete.addListener("place_changed", () => {
+          const place = autocomplete.getPlace();
+          if (!place.geometry) {
+            setError("Please select a valid address from the suggestions");
+            return;
+          }
+
+          let newStreet = "";
+          let newCity = "";
+          let newState = "";
+          let newCountry = "";
+          let newPostalCode = "";
+
+          place.address_components.forEach((component) => {
+            const types = component.types;
+            if (types.includes("street_number") || types.includes("route")) {
+              newStreet += (newStreet ? " " : "") + component.long_name;
+            }
+            if (types.includes("locality")) {
+              newCity = component.long_name;
+            }
+            if (types.includes("administrative_area_level_1")) {
+              newState = component.long_name;
+            }
+            if (types.includes("country")) {
+              newCountry = component.long_name;
+            }
+            if (types.includes("postal_code")) {
+              newPostalCode = component.long_name;
+            }
+          });
+
+          setAddress(place.formatted_address);
+          setStreet(newStreet);
+          setCity(newCity);
+          setState(newState);
+          setCountry(newCountry);
+          setPostalCode(newPostalCode);
+          setLat(place.geometry.location.lat());
+          setLng(place.geometry.location.lng());
+        });
+      }
+    };
+
+    if (window.google) {
+      initAutocomplete();
+    } else {
+      const interval = setInterval(() => {
+        if (window.google) {
+          initAutocomplete();
+          clearInterval(interval);
+        }
+      }, 100);
+      return () => clearInterval(interval);
     }
-  };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
 
-    const jobData = { title, description, location };
+    if (!lat || !lng) {
+      setError("Please select a valid address to geocode the location");
+      return;
+    }
 
-    const response = await fetch(`/api/jobs/${initialJob.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(jobData),
-    });
+    const jobData = {
+      title,
+      description,
+      street,
+      city,
+      state,
+      country,
+      postalCode,
+      lat,
+      lng,
+      location: `${street}, ${city}, ${state}, ${country}${postalCode ? " " + postalCode : ""}`,
+    };
 
-    if (response.ok) {
-      setSuccess("Job updated successfully!");
-      setTimeout(() => router.push("/jobs"), 1000);
-    } else {
-      setError("Failed to update job");
+    try {
+      const response = await fetch(`/api/jobs/${initialJob?.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(jobData),
+      });
+
+      if (response.ok) {
+        setSuccess("Job updated successfully!");
+        setTimeout(() => router.push("/jobs"), 1000);
+      } else {
+        const errorData = await response.json();
+        setError(`Failed to update job: ${errorData.message || response.statusText}`);
+      }
+    } catch (err) {
+      setError(`Failed to update job: ${err.message}`);
     }
   };
 
-  if (!session || !initialJob) {
-    return (
-      <DefaultLayout>
-        <Breadcrumb pageName="Edit Job" />
-        <div className="flex flex-col gap-10">
-          <p>{error || "Loading..."}</p>
-        </div>
-      </DefaultLayout>
-    );
-  }
-
   return (
-    <>
-      <Script
-        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA8Kd0-RN8DRm0l5hxelpsSiHY9eZz-0V0&libraries=places"
-        onLoad={initAutocomplete}
-      />
-      <DefaultLayout>
-        <div className="mx-auto max-w-270">
-          <Breadcrumb pageName="Edit Job" />
-          <div className="grid grid-cols-5 gap-8">
-            <div className="col-span-5">
+    <DefaultLayout>
+      <div className="mx-auto max-w-270">
+        <Breadcrumb pageName="Edit Job" />
+        <div className="grid grid-cols-5 gap-8">
+          <div className="col-span-5">
+            {error ? (
+              <div className="p-7">
+                <p className="text-red-500 text-lg">{error}</p>
+              </div>
+            ) : (
               <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
                 <div className="border-b border-stroke px-7 py-4 dark:border-strokedark">
                   <h3 className="font-medium text-black dark:text-white">Job Details</h3>
@@ -85,7 +167,10 @@ export default function EditJobClient({ initialJob, session }) {
                 <div className="p-7">
                   <form onSubmit={handleSubmit}>
                     <div className="mb-5.5">
-                      <label className="mb-3 block text-sm font-medium text-black dark:text-white" htmlFor="title">
+                      <label
+                        className="mb-3 block text-sm font-medium text-black dark:text-white"
+                        htmlFor="title"
+                      >
                         Job Title
                       </label>
                       <input
@@ -101,7 +186,10 @@ export default function EditJobClient({ initialJob, session }) {
                     </div>
 
                     <div className="mb-5.5">
-                      <label className="mb-3 block text-sm font-medium text-black dark:text-white" htmlFor="description">
+                      <label
+                        className="mb-3 block text-sm font-medium text-black dark:text-white"
+                        htmlFor="description"
+                      >
                         Description
                       </label>
                       <textarea
@@ -117,18 +205,21 @@ export default function EditJobClient({ initialJob, session }) {
                     </div>
 
                     <div className="mb-5.5">
-                      <label className="mb-3 block text-sm font-medium text-black dark:text-white" htmlFor="location">
-                        Location
+                      <label
+                        className="mb-3 block text-sm font-medium text-black dark:text-white"
+                        htmlFor="address"
+                      >
+                        Full Address
                       </label>
                       <input
                         ref={autocompleteRef}
                         className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
                         type="text"
-                        name="location"
-                        id="location"
-                        placeholder="Enter job location"
-                        value={location}
-                        onChange={(e) => setLocation(e.target.value)}
+                        name="address"
+                        id="address"
+                        placeholder="Enter full address (e.g., 123 Main St, Toronto, ON, Canada)"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
                         required
                       />
                     </div>
@@ -154,10 +245,10 @@ export default function EditJobClient({ initialJob, session }) {
                   </form>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
-      </DefaultLayout>
-    </>
+      </div>
+    </DefaultLayout>
   );
 }
