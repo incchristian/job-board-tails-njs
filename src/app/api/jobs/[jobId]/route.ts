@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import sqlite3 from "sqlite3";
 import { open } from "sqlite";
+import { existsSync } from "fs";
 
 export async function PUT(req: NextRequest, { params }) {
   try {
@@ -9,7 +10,6 @@ export async function PUT(req: NextRequest, { params }) {
       title,
       description,
       location,
-      employerId,
       logoPath,
       lat,
       lng,
@@ -24,7 +24,6 @@ export async function PUT(req: NextRequest, { params }) {
       title,
       description,
       location,
-      employerId,
       logoPath,
       lat,
       lng,
@@ -36,22 +35,30 @@ export async function PUT(req: NextRequest, { params }) {
     });
 
     if (!jobId || !title || !description || !location) {
+      console.log("Validation failed: Missing required fields");
       return NextResponse.json({ message: "Missing required fields or jobId" }, { status: 400 });
     }
 
+    const dbPath = "C:/Projects/job-board-tails-njs/database.sqlite";
+    console.log("Checking database path:", dbPath, "Exists:", existsSync(dbPath));
+    if (!existsSync(dbPath)) {
+      throw new Error("Database file not found at specified path");
+    }
+
     const db = await open({
-      filename: "./database.sqlite",
+      filename: dbPath,
       driver: sqlite3.Database,
     });
+    console.log("Database opened successfully");
+
     const result = await db.run(
       `UPDATE jobs 
-       SET title = ?, description = ?, location = ?, employerId = ?, logoPath = ?, lat = ?, lng = ?, country = ?, state = ?, street = ?, city = ?, postalCode = ? 
+       SET title = ?, description = ?, location = ?, logoPath = ?, lat = ?, lng = ?, country = ?, state = ?, street = ?, city = ?, postalCode = ? 
        WHERE id = ?`,
       [
         title,
         description,
         location,
-        employerId || null,
         logoPath || null,
         lat || null,
         lng || null,
@@ -66,8 +73,10 @@ export async function PUT(req: NextRequest, { params }) {
     console.log("Update result:", result);
 
     await db.close();
+    console.log("Database closed");
 
     if (result.changes === 0) {
+      console.log("No rows updated, job not found for id:", jobId);
       return NextResponse.json({ message: "Job not found" }, { status: 404 });
     }
     return NextResponse.json({ message: "Job updated successfully" }, { status: 200 });
@@ -80,22 +89,35 @@ export async function PUT(req: NextRequest, { params }) {
 export async function DELETE(req: NextRequest, { params }) {
   const { jobId } = params;
   if (!jobId) {
+    console.log("Validation failed: Missing jobId");
     return NextResponse.json({ message: "Missing jobId" }, { status: 400 });
   }
   try {
+    const dbPath = "C:/Projects/job-board-tails-njs/database.sqlite";
+    console.log("Checking database path for DELETE:", dbPath, "Exists:", existsSync(dbPath));
+    if (!existsSync(dbPath)) {
+      throw new Error("Database file not found at specified path");
+    }
+
     const db = await open({
-      filename: "./database.sqlite",
+      filename: dbPath,
       driver: sqlite3.Database,
     });
+    console.log("Database opened successfully for DELETE");
+
     const result = await db.run("DELETE FROM jobs WHERE id = ?", [jobId]);
     console.log("Delete result:", result);
+
     await db.close();
+    console.log("Database closed for DELETE");
+
     if (result.changes === 0) {
+      console.log("No rows deleted, job not found for id:", jobId);
       return NextResponse.json({ message: "Job not found" }, { status: 404 });
     }
     return NextResponse.json({ message: "Job deleted successfully" }, { status: 200 });
-  } catch (error) {
-    console.error("Error deleting job:", error);
-    return NextResponse.json({ message: "Server error" }, { status: 500 });
+  } catch (error: any) {
+    console.error("Error deleting job:", error.message, "Stack:", error.stack);
+    return NextResponse.json({ message: "Server error", details: error.message }, { status: 500 });
   }
 }

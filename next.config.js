@@ -18,7 +18,7 @@ const nextConfig = {
     return config;
   },
   images: {
-    domains: ["res.cloudinary.com"], // Allow Cloudinary images
+    domains: ["res.cloudinary.com", "openweathermap.org"], // Add OpenWeatherMap domain
   },
 };
 

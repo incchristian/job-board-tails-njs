@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import DarkModeSwitcher from "./DarkModeSwitcher";
 import DropdownMessage from "./DropdownMessage";
@@ -5,12 +7,133 @@ import DropdownNotification from "./DropdownNotification";
 import DropdownUser from "./DropdownUser";
 import Image from "next/image";
 import { useProfile } from "@/context/ProfileContext";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+// Map OpenWeatherMap icon codes to local colorful icons
+const weatherIconMap = {
+  "01d": "/weather-icons/sunny.png",
+  "01n": "/weather-icons/clear-night.png",
+  "02d": "/weather-icons/partly-cloudy-day.png",
+  "02n": "/weather-icons/partly-cloudy-night.png",
+  "03d": "/weather-icons/cloudy.png",
+  "03n": "/weather-icons/cloudy.png",
+  "04d": "/weather-icons/overcast.png",
+  "04n": "/weather-icons/overcast.png",
+  "09d": "/weather-icons/shower-rain.png",
+  "09n": "/weather-icons/shower-rain.png",
+  "10d": "/weather-icons/rain.png",
+  "10n": "/weather-icons/rain.png",
+  "11d": "/weather-icons/thunderstorm.png",
+  "11n": "/weather-icons/thunderstorm.png",
+  "13d": "/weather-icons/snow.png",
+  "13n": "/weather-icons/snow.png",
+  "50d": "/weather-icons/fog.png",
+  "50n": "/weather-icons/fog.png",
+};
 
 const Header = (props: {
   sidebarOpen: string | boolean | undefined;
   setSidebarOpen: (arg0: boolean) => void;
 }) => {
   const { profilePic } = useProfile();
+  const [weather, setWeather] = useState<{
+    condition: string;
+    temp: number;
+    city: string;
+    icon: string;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<{ type: string; id: number; label: string }[]>([]);
+  const router = useRouter();
+
+  // Weather fetch
+  useEffect(() => {
+    const fetchWeather = async (lat: number, lon: number) => {
+      const apiKey = process.env.NEXT_PUBLIC_OPENWEATHERMAP_API_KEY;
+      const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Weather fetch failed: ${response.statusText}`);
+        const data = await response.json();
+        setWeather({
+          condition: data.weather[0].main,
+          temp: Math.round(data.main.temp),
+          city: data.name,
+          icon: weatherIconMap[data.weather[0].icon] || "/weather-icons/default.png",
+        });
+      } catch (error) {
+        console.error("Error fetching weather:", error);
+        setWeather(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          fetchWeather(latitude, longitude);
+        },
+        (error) => {
+          console.error("Geolocation error:", error);
+          setWeather(null);
+          setLoading(false);
+        }
+      );
+    } else {
+      setWeather(null);
+      setLoading(false);
+    }
+  }, []);
+
+  // Fetch search suggestions with debounce
+  useEffect(() => {
+    const debounceFetch = setTimeout(async () => {
+      if (!searchQuery.trim()) {
+        setSuggestions([]);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`);
+        if (!response.ok) throw new Error("Search fetch failed");
+        const { jobs, users } = await response.json();
+
+        const jobSuggestions = jobs.map((job: { id: number; title: string }) => ({
+          type: "job",
+          id: job.id,
+          label: job.title,
+        }));
+
+        const userSuggestions = users.map((user: { id: number; name: string; userClass: string }) => ({
+          type: "user",
+          id: user.id,
+          label: `${user.name} (${user.userClass})`,
+        }));
+
+        setSuggestions([...jobSuggestions, ...userSuggestions]);
+      } catch (error) {
+        console.error("Error fetching suggestions:", error);
+        setSuggestions([]);
+      }
+    }, 300);
+
+    return () => clearTimeout(debounceFetch);
+  }, [searchQuery]);
+
+  // Handle suggestion selection
+  const handleSelect = (type: string, id: number) => {
+    if (type === "job") {
+      router.push(`/jobs/${id}`);
+    } else if (type === "user") {
+      router.push(`/profile/${id}`);
+    }
+    setSearchQuery("");
+    setSuggestions([]);
+  };
 
   return (
     <header className="sticky top-0 z-999 flex w-full bg-white drop-shadow-1 dark:bg-boxdark dark:drop-shadow-none">
@@ -66,10 +189,10 @@ const Header = (props: {
           </Link>
         </div>
 
-        <div className="hidden sm:block">
-          <form action="https://formbold.com/s/unique_form_id" method="POST">
+        <div className="hidden sm:block relative">
+          <form onSubmit={(e) => e.preventDefault()}>
             <div className="relative">
-              <button className="absolute left-0 top-1/2 -translate-y-1/2">
+              <button type="submit" className="absolute left-0 top-1/2 -translate-y-1/2">
                 <svg
                   className="fill-body hover:fill-primary dark:fill-bodydark dark:hover:fill-primary"
                   width="20"
@@ -94,14 +217,47 @@ const Header = (props: {
               </button>
               <input
                 type="text"
-                placeholder="Type to search..."
+                placeholder="Search jobs, candidates, employers, recruiters..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-transparent pl-9 pr-4 font-medium focus:outline-none xl:w-125"
               />
             </div>
+            {suggestions.length > 0 && (
+              <ul className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md max-h-60 overflow-y-auto dark:bg-boxdark">
+                {suggestions.map((suggestion, index) => (
+                  <li
+                    key={index}
+                    onClick={() => handleSelect(suggestion.type, suggestion.id)}
+                    className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-graydark cursor-pointer text-black dark:text-white"
+                  >
+                    {suggestion.label}
+                  </li>
+                ))}
+              </ul>
+            )}
           </form>
         </div>
 
         <div className="flex items-center gap-3 2xsm:gap-7">
+          <div className="flex items-center gap-1 text-sm font-medium text-black dark:text-white">
+            {loading ? (
+              "Loading weather..."
+            ) : weather ? (
+              <>
+                <Image
+                  src={weather.icon}
+                  alt={weather.condition}
+                  width={16}
+                  height={16}
+                  className="inline-block"
+                />
+                <span>{`${weather.city}: ${weather.condition}, ${weather.temp}°C`}</span>
+              </>
+            ) : (
+              "Weather unavailable"
+            )}
+          </div>
           <ul className="flex items-center gap-2 2xsm:gap-4">
             <DarkModeSwitcher />
             <DropdownNotification />
