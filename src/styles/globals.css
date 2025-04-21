@@ -1,7 +1,138 @@
 /* filepath: /c:/Users/K2/IdeaProjects/Job-Board Tails NJS/job-board/src/styles/globals.css */
+
+/* Simple layout for login page with background image */
 .simple-layout {
   background-image: url('/images/photos/background-image.jpg');
   background-size: cover;
   background-position: center;
   min-height: 100vh;
+}
+
+/* Chat container */
+.chat-container {
+  @apply max-w-full p-6 bg-black text-white rounded-3xl transition-all duration-300;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.dark .chat-container {
+  @apply bg-black text-white;
+}
+
+.chat-container:not(.dark) {
+  @apply bg-white text-gray-800;
+}
+
+/* Header */
+.chat-container h1 {
+  @apply text-left text-lg font-bold mb-4 tracking-tight flex items-center text-gray-400;
+}
+
+.chat-container:not(.dark) h1 {
+  @apply text-gray-600;
+}
+
+.chat-container h1::before {
+  content: '';
+  @apply inline-block w-6 h-6 mr-2 bg-no-repeat bg-center;
+  background-image: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='2' y='2' width='20' height='20' rx='4' fill='%23ffffff'/%3E%3Cpath d='M6 18L18 6' stroke='%23000000' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+.chat-container:not(.dark) h1::before {
+  background-image: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='2' y='2' width='20' height='20' rx='4' fill='%23000000'/%3E%3Cpath d='M6 18L18 6' stroke='%23ffffff' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+/* Chat box */
+.chat-box {
+  @apply p-4 max-h-[400px] overflow-y-auto bg-transparent;
+}
+
+.chat-box::-webkit-scrollbar {
+  @apply w-2;
+}
+
+.chat-box::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+.chat-box::-webkit-scrollbar-thumb {
+  @apply bg-gray-700 rounded-xl;
+}
+
+.chat-box:not(.dark)::-webkit-scrollbar-thumb {
+  @apply bg-gray-400;
+}
+
+/* Messages */
+p.user,
+p.bot {
+  @apply my-3 p-3 rounded-xl text-base leading-relaxed max-w-[90%];
+}
+
+p.user {
+  @apply bg-blue-600 text-white ml-auto text-right;
+}
+
+p.user:not(.dark) {
+  @apply bg-blue-500;
+}
+
+p.bot {
+  @apply text-white mr-auto;
+}
+
+p.bot:not(.dark) {
+  @apply text-gray-800;
+}
+
+/* Loading state */
+p.loading {
+  @apply text-gray-400 italic text-center text-sm my-4;
+}
+
+p.loading:not(.dark) {
+  @apply text-gray-600;
+}
+
+/* Form */
+.chat-form {
+  @apply flex mt-6 gap-2 items-center;
+}
+
+.chat-form input {
+  @apply flex-1 p-3 border border-gray-700 rounded-xl bg-gray-800 text-white text-base transition-all duration-200;
+}
+
+.chat-form input:not(.dark) {
+  @apply border-gray-300 bg-gray-200 text-gray-800;
+}
+
+.chat-form input:focus {
+  @apply outline-none border-blue-600 ring-2 ring-blue-600/20;
+}
+
+.chat-form input:not(.dark):focus {
+  @apply border-blue-500 ring-blue-500/20;
+}
+
+.chat-form button {
+  @apply flex items-center justify-center w-10 h-10 bg-blue-600 text-white rounded-full transition-all duration-200 hover:bg-blue-500;
+}
+
+.chat-form button:not(.dark) {
+  @apply bg-blue-500 hover:bg-blue-400;
+}
+
+.chat-form button:disabled {
+  @apply bg-gray-700 cursor-not-allowed;
+}
+
+.chat-form button:disabled:not(.dark) {
+  @apply bg-gray-400;
+}
+
+/* Send button icon (right-facing arrow) */
+.chat-form button::before {
+  content: '';
+  @apply inline-block w-6 h-6 bg-no-repeat bg-center ml-1;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23ffffff' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M9 5l7 7m0 0l-7 7m7-7H3'/%3E%3C/svg%3E");
 }

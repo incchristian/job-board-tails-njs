@@ -48,7 +48,6 @@ const Header = (props: {
   const [suggestions, setSuggestions] = useState<{ type: string; id: number; label: string }[]>([]);
   const router = useRouter();
 
-  // Weather fetch
   useEffect(() => {
     const fetchWeather = async (lat: number, lon: number) => {
       const apiKey = process.env.NEXT_PUBLIC_OPENWEATHERMAP_API_KEY;
@@ -89,7 +88,6 @@ const Header = (props: {
     }
   }, []);
 
-  // Fetch search suggestions with debounce
   useEffect(() => {
     const debounceFetch = setTimeout(async () => {
       if (!searchQuery.trim()) {
@@ -124,7 +122,6 @@ const Header = (props: {
     return () => clearTimeout(debounceFetch);
   }, [searchQuery]);
 
-  // Handle suggestion selection
   const handleSelect = (type: string, id: number) => {
     if (type === "job") {
       router.push(`/jobs/${id}`);

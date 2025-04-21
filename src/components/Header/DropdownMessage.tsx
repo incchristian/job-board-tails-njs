@@ -1,15 +1,44 @@
+"use client";
+
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useSession } from "next-auth/react";
 
 const DropdownMessage = () => {
+  const { data: session, status } = useSession();
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [notifying, setNotifying] = useState(true);
+  const [notifying, setNotifying] = useState(false);
+  const [messages, setMessages] = useState<
+    { id: number; senderId: number; senderName: string; senderPic: string; content: string; timestamp: string }[]
+  >([]);
 
   const trigger = useRef<any>(null);
   const dropdown = useRef<any>(null);
 
-  // close on click outside
+  useEffect(() => {
+    if (status !== "authenticated" || !session?.user?.id) return;
+
+    const fetchMessages = async () => {
+      try {
+        const response = await fetch("/api/messages", {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+        });
+        if (!response.ok) throw new Error("Failed to fetch messages");
+        const data = await response.json();
+        setMessages(data.messages);
+        setNotifying(data.messages.some((msg: any) => !msg.read));
+      } catch (error) {
+        console.error("Error fetching messages:", error);
+        setMessages([]);
+      }
+    };
+
+    fetchMessages();
+  }, [session, status]);
+
   useEffect(() => {
     const clickHandler = ({ target }: MouseEvent) => {
       if (!dropdown.current) return;
@@ -25,7 +54,6 @@ const DropdownMessage = () => {
     return () => document.removeEventListener("click", clickHandler);
   });
 
-  // close if the esc key is pressed
   useEffect(() => {
     const keyHandler = ({ keyCode }: KeyboardEvent) => {
       if (!dropdownOpen || keyCode !== 27) return;
@@ -53,7 +81,6 @@ const DropdownMessage = () => {
         >
           <span className="absolute -z-1 inline-flex h-full w-full animate-ping rounded-full bg-meta-1 opacity-75"></span>
         </span>
-
         <svg
           className="fill-current duration-300 ease-in-out"
           width="18"
@@ -81,7 +108,6 @@ const DropdownMessage = () => {
         </svg>
       </Link>
 
-      {/* <!-- Dropdown Start --> */}
       <div
         ref={dropdown}
         onFocus={() => setDropdownOpen(true)}
@@ -95,144 +121,37 @@ const DropdownMessage = () => {
         </div>
 
         <ul className="flex h-auto flex-col overflow-y-auto">
-          <li>
-            <Link
-              className="flex gap-4.5 border-t border-stroke px-4.5 py-3 hover:bg-gray-2 dark:border-strokedark dark:hover:bg-meta-4"
-              href="/messages"
-            >
-              <div className="h-12.5 w-12.5 rounded-full">
-                <Image
-                  width={112}
-                  height={112}
-                  src={"/images/user/user-02.png"}
-                  alt="User"
-                  style={{
-                    width: "auto",
-                    height: "auto",
-                  }}
-                />
-              </div>
-
-              <div>
-                <h6 className="text-sm font-medium text-black dark:text-white">
-                  Mariya Desoja
-                </h6>
-                <p className="text-sm">I like your confidence 💪</p>
-                <p className="text-xs">2min ago</p>
-              </div>
-            </Link>
-          </li>
-          <li>
-            <Link
-              className="flex gap-4.5 border-t border-stroke px-4.5 py-3 hover:bg-gray-2 dark:border-strokedark dark:hover:bg-meta-4"
-              href="/messages"
-            >
-              <div className="h-12.5 w-12.5 rounded-full">
-                <Image
-                  width={112}
-                  height={112}
-                  src={"/images/user/user-01.png"}
-                  alt="User"
-                  style={{
-                    width: "auto",
-                    height: "auto",
-                  }}
-                />
-              </div>
-
-              <div>
-                <h6 className="text-sm font-medium text-black dark:text-white">
-                  Robert Jhon
-                </h6>
-                <p className="text-sm">Can you share your offer?</p>
-                <p className="text-xs">10min ago</p>
-              </div>
-            </Link>
-          </li>
-          <li>
-            <Link
-              className="flex gap-4.5 border-t border-stroke px-4.5 py-3 hover:bg-gray-2 dark:border-strokedark dark:hover:bg-meta-4"
-              href="/messages"
-            >
-              <div className="h-12.5 w-12.5 rounded-full">
-                <Image
-                  width={112}
-                  height={112}
-                  src={"/images/user/user-03.png"}
-                  alt="User"
-                  style={{
-                    width: "auto",
-                    height: "auto",
-                  }}
-                />
-              </div>
-
-              <div>
-                <h6 className="text-sm font-medium text-black dark:text-white">
-                  Henry Dholi
-                </h6>
-                <p className="text-sm">I cam across your profile and...</p>
-                <p className="text-xs">1day ago</p>
-              </div>
-            </Link>
-          </li>
-          <li>
-            <Link
-              className="flex gap-4.5 border-t border-stroke px-4.5 py-3 hover:bg-gray-2 dark:border-strokedark dark:hover:bg-meta-4"
-              href="/messages"
-            >
-              <div className="h-12.5 w-12.5 rounded-full">
-                <Image
-                  width={112}
-                  height={112}
-                  src={"/images/user/user-04.png"}
-                  alt="User"
-                  style={{
-                    width: "auto",
-                    height: "auto",
-                  }}
-                />
-              </div>
-
-              <div>
-                <h6 className="text-sm font-medium text-black dark:text-white">
-                  Cody Fisher
-                </h6>
-                <p className="text-sm">I’m waiting for you response!</p>
-                <p className="text-xs">5days ago</p>
-              </div>
-            </Link>
-          </li>
-          <li>
-            <Link
-              className="flex gap-4.5 border-t border-stroke px-4.5 py-3 hover:bg-gray-2 dark:border-strokedark dark:hover:bg-meta-4"
-              href="/messages"
-            >
-              <div className="h-12.5 w-12.5 rounded-full">
-                <Image
-                  width={112}
-                  height={112}
-                  src={"/images/user/user-02.png"}
-                  alt="User"
-                  style={{
-                    width: "auto",
-                    height: "auto",
-                  }}
-                />
-              </div>
-
-              <div>
-                <h6 className="text-sm font-medium text-black dark:text-white">
-                  Mariya Desoja
-                </h6>
-                <p className="text-sm">I like your confidence 💪</p>
-                <p className="text-xs">2min ago</p>
-              </div>
-            </Link>
-          </li>
+          {messages.length > 0 ? (
+            messages.map((msg) => (
+              <li key={msg.id}>
+                <Link
+                  className="flex gap-4.5 border-t border-stroke px-4.5 py-3 hover:bg-gray-2 dark:border-strokedark dark:hover:bg-meta-4"
+                  href={`/messages?senderId=${msg.senderId}`} // Link to full page with senderId
+                >
+                  <div className="h-12.5 w-12.5 rounded-full">
+                    <Image
+                      width={112}
+                      height={112}
+                      src={msg.senderPic || "/images/user/user-06.png"}
+                      alt={msg.senderName}
+                      style={{ width: "auto", height: "auto" }}
+                    />
+                  </div>
+                  <div>
+                    <h6 className="text-sm font-medium text-black dark:text-white">
+                      {msg.senderName}
+                    </h6>
+                    <p className="text-sm">{msg.content}</p>
+                    <p className="text-xs">{msg.timestamp}</p>
+                  </div>
+                </Link>
+              </li>
+            ))
+          ) : (
+            <li className="px-4.5 py-3 text-sm text-gray-500">No messages yet</li>
+          )}
         </ul>
       </div>
-      {/* <!-- Dropdown End --> */}
     </li>
   );
 };
