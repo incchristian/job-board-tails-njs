@@ -42,13 +42,13 @@ export const authOptions = {
               id: String(user.id),
               name: user.name,
               email: user.email,
-              userClass: user.userClass, // Add userClass
+              userClass: user.userClass,
             });
             return {
               id: String(user.id),
               name: user.name,
               email: user.email,
-              userClass: user.userClass, // Include userClass
+              userClass: user.userClass,
             };
           }
           console.log("Password mismatch for:", credentials.email);
@@ -67,7 +67,7 @@ export const authOptions = {
         token.id = user.id;
         token.name = user.name;
         token.email = user.email;
-        token.userClass = user.userClass; // Add userClass to token
+        token.userClass = user.userClass;
       }
       return token;
     },
@@ -77,7 +77,7 @@ export const authOptions = {
         session.user.id = token.id;
         session.user.name = token.name;
         session.user.email = token.email;
-        session.user.userClass = token.userClass; // Add userClass to session
+        session.user.userClass = token.userClass;
       }
       return session;
     },

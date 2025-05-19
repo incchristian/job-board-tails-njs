@@ -18,16 +18,19 @@ interface JobWithCoords {
   postalCode: string | null;
 }
 
-interface JobsMapProps {
-  jobs: JobWithCoords[];
-}
-
-export default function JobsMap({ jobs }: JobsMapProps) {
+export default function MapPopup() {
   const mapRef = useRef<HTMLDivElement>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [jobs, setJobs] = useState<JobWithCoords[]>([]);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
 
-  console.log("JobsMap component rendered with jobs:", jobs);
+  useEffect(() => {
+    // Retrieve jobs from sessionStorage
+    const storedJobs = sessionStorage.getItem("jobsForMap");
+    if (storedJobs) {
+      setJobs(JSON.parse(storedJobs));
+    }
+  }, []);
 
   const loadGoogleMapsScript = () => {
     if (window.google) {
@@ -107,45 +110,14 @@ export default function JobsMap({ jobs }: JobsMapProps) {
     setMapLoaded(true);
   };
 
-  const openMapInPopup = () => {
-    // Store jobs data in sessionStorage to pass to the pop-up
-    sessionStorage.setItem("jobsForMap", JSON.stringify(jobs));
-
-    // Ensure the full URL is used for the pop-up to avoid routing issues
-    const url = window.location.origin + "/jobs/map-popup";
-    const popup = window.open(
-      url,
-      "MapPopup",
-      "width=800,height=600,resizable=yes,scrollbars=yes"
-    );
-
-    if (popup) {
-      popup.focus();
-      // Ensure the pop-up loads the map by reloading after a short delay
-      setTimeout(() => {
-        popup.location.href = url;
-      }, 100);
-    } else {
-      console.error("Failed to open pop-up window. Please allow pop-ups for this site.");
-    }
-  };
-
   useEffect(() => {
     loadGoogleMapsScript();
-  }, [jobs]); // Only re-run if jobs change
+  }, [jobs]); // Re-run if jobs change
 
   return (
-    <div className="relative h-96 w-screen">
+    <div className="relative h-screen w-screen">
       {/* Map Container */}
       <div ref={mapRef} className="h-full w-full" />
-
-      {/* Button to Open Map in Pop-Up */}
-      <button
-        onClick={openMapInPopup}
-        className="absolute top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-md shadow-md hover:bg-blue-600 z-20"
-      >
-        Open Full-Screen Map
-      </button>
 
       {/* Loading Animation */}
       {!mapLoaded && (
