@@ -9,7 +9,9 @@ interface ProfilePageProps {
   params: { id: string };
 }
 
-export default async function UserProfile({ params }: ProfilePageProps) {
+export default async function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+
   const db = await open({
     filename: "./database.sqlite", // Relative path
     driver: sqlite3.Database,
@@ -17,7 +19,7 @@ export default async function UserProfile({ params }: ProfilePageProps) {
 
   const user = await db.get(
     "SELECT name, email, userClass, company, bio, profilePicture FROM users WHERE id = ?",
-    [params.id]
+    [id]
   );
 
   await db.close();

@@ -1,78 +1,51 @@
-import sqlite3 from "sqlite3";
-import { open } from "sqlite";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/authOptions";
+import { authOptions } from "@/app/api/auth/[...nextauth]/authOptions";
 import DefaultLayout from "@/components/Layouts/DefaultLayout";
 import Link from "next/link";
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import JobDropdown from "./JobDropdown";
+import sqlite3 from "sqlite3";
+import { open } from "sqlite";
 
-async function fetchMyJobs(userId: string) {
+async function fetchUserJobs(employerId: string) {
   const db = await open({
     filename: "./database.sqlite",
     driver: sqlite3.Database,
   });
+  
   const jobs = await db.all(
-    "SELECT id, title, description, location, employerId FROM jobs WHERE employerId = ?",
-    [userId]
+    `SELECT id, title, description, location, employerId, logoPath, 
+            lat, lng, country, state, street, city, postalCode 
+     FROM jobs WHERE employerId = ?`,
+    [employerId]
   );
+  
   await db.close();
   return jobs;
 }
 
-async function deleteJob(jobId: string) {
-  const db = await open({
-    filename: "./database.sqlite",
-    driver: sqlite3.Database,
-  });
-  await db.run("DELETE FROM jobs WHERE id = ?", [jobId]);
-  await db.close();
-}
-
-export default async function MyJobsPage({ searchParams }: { searchParams?: { delete?: string } }) {
+export default async function MyJobsPage({ searchParams }: { searchParams?: Promise<{ delete?: string }> }) {
+  const params = searchParams ? await searchParams : {};
   const session = await getServerSession(authOptions);
-  const userId = session?.user?.id;
-  const userClass = session?.user?.userClass || "Candidate";
-
+  
   if (!session) {
     return (
       <DefaultLayout>
         <div className="container mx-auto p-6">
-          <h1 className="text-3xl font-bold mb-6">My Job Listings</h1>
-          <p className="text-gray-600">Please log in to view your jobs.</p>
+          <p>Please log in to view your jobs.</p>
         </div>
       </DefaultLayout>
     );
   }
 
-  if (userClass === "Candidate") {
-    return (
-      <DefaultLayout>
-        <div className="container mx-auto p-6">
-          <h1 className="text-3xl font-bold mb-6">My Job Listings</h1>
-          <p className="text-gray-600">This page is only for employers.</p>
-        </div>
-      </DefaultLayout>
-    );
-  }
-
-  if (searchParams?.delete) {
-    await deleteJob(searchParams.delete);
-    revalidatePath("/my-jobs");
-    redirect("/my-jobs");
-  }
-
-  const jobs = await fetchMyJobs(userId!);
+  const jobs = await fetchUserJobs(session.user.id);
 
   return (
     <DefaultLayout>
       <div className="container mx-auto p-6">
-        <h1 className="text-3xl font-bold mb-6">My Job Listings</h1>
-        <p className="text-gray-500 mb-4">Your User ID: {userId}</p>
+        <h1 className="text-2xl font-bold mb-6">My Jobs</h1>
+        
         {jobs.length === 0 ? (
           <p className="text-gray-600">
-            You haven't posted any jobs yet.{" "}
+            You haven&apos;t posted any jobs yet.{" "}
             <Link href="/jobs/post" className="text-primary hover:underline">
               Post a job now
             </Link>
@@ -87,18 +60,21 @@ export default async function MyJobsPage({ searchParams }: { searchParams?: { de
                 <h2 className="text-xl font-semibold mb-2 truncate">{job.title}</h2>
                 <p className="text-gray-600 mb-2 flex-grow overflow-hidden">{job.description}</p>
                 <p className="text-gray-500 text-sm">📍 {job.location}</p>
-                <p className="text-gray-400 text-xs">
-                  Job ID: {job.id}, Employer ID: {job.employerId}
-                </p>
-                <div className="mt-2">
-                  <Link
+                
+                <div className="mt-2 flex gap-2">
+                  <Link 
                     href={`/jobs/edit/${job.id}`}
-                    className="text-primary hover:underline text-sm"
+                    className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600"
                   >
                     Edit
                   </Link>
+                  <button 
+                    className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600"
+                    onClick={() => {/* Add delete functionality later */}}
+                  >
+                    Delete
+                  </button>
                 </div>
-                <JobDropdown jobId={job.id} />
               </div>
             ))}
           </div>
