@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import sqlite3 from "sqlite3";
 import { open } from "sqlite";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/app/api/auth/authOptions";
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   }
 
   const db = await open({
-    filename: "C:/Projects/job-board-tails-njs/database.sqlite",
+    filename: "./database.sqlite",
     driver: sqlite3.Database,
   });
 

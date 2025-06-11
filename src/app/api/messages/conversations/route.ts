@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import sqlite3 from "sqlite3";
 import { open } from "sqlite";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/app/api/auth/authOptions";
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   }
 
   const db = await open({
-    filename: "C:/Projects/job-board-tails-njs/database.sqlite",
+    filename: "./database.sqlite",
     driver: sqlite3.Database,
   });
 
@@ -22,7 +22,15 @@ export async function GET(request: Request) {
      JOIN messages m ON (m.senderId = u.id AND m.recipientId = ?) OR (m.senderId = ? AND m.recipientId = u.id)
      WHERE u.id != ?
      ORDER BY (SELECT MAX(timestamp) FROM messages m3 WHERE (m3.senderId = u.id AND m3.recipientId = ?) OR (m3.senderId = ? AND m3.recipientId = u.id)) DESC`,
-    [session.user.id, session.user.id, session.user.id, session.user.id, session.user.id, session.user.id, session.user.id]
+    [
+      session.user.id,
+      session.user.id,
+      session.user.id,
+      session.user.id,
+      session.user.id,
+      session.user.id,
+      session.user.id,
+    ]
   );
 
   await db.close();

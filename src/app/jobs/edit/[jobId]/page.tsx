@@ -1,10 +1,10 @@
 import sqlite3 from "sqlite3";
 import { open } from "sqlite";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/app/api/auth/authOptions";
 import EditJobClient from "./EditJobClient";
 
-async function fetchJob(jobId) {
+async function fetchJob(jobId: string) {
   const db = await open({
     filename: "./database.sqlite",
     driver: sqlite3.Database,
@@ -19,8 +19,12 @@ async function fetchJob(jobId) {
   return job;
 }
 
-export default async function EditJobPage({ params }) {
-  const { jobId } = params; // Matches [jobId] folder
+interface EditJobPageProps {
+  params: { jobId: string };
+}
+
+export default async function EditJobPage({ params }: EditJobPageProps) {
+  const { jobId } = params;
   const session = await getServerSession(authOptions);
   const job = await fetchJob(jobId);
 

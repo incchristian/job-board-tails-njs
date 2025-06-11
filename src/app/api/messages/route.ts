@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import sqlite3 from "sqlite3";
 import { open } from "sqlite";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"; // Adjust path to your auth config
+import { authOptions } from "@/app/api/auth/authOptions";
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
@@ -11,11 +11,10 @@ export async function GET(request: Request) {
   }
 
   const db = await open({
-    filename: "C:/Projects/job-board-tails-njs/database.sqlite",
+    filename: "./database.sqlite",
     driver: sqlite3.Database,
   });
 
-  // Fetch messages where the user is the recipient
   const messages = await db.all(
     `SELECT m.id, m.content, m.timestamp, u.name AS senderName, u.profilePicture AS senderPic
      FROM messages m

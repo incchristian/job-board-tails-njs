@@ -5,9 +5,13 @@ import { notFound } from "next/navigation";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import DefaultLayout from "@/components/Layouts/DefaultLayout";
 
-export default async function UserProfile({ params }: { params: { id: string } }) {
+interface ProfilePageProps {
+  params: { id: string };
+}
+
+export default async function UserProfile({ params }: ProfilePageProps) {
   const db = await open({
-    filename: "C:/Projects/job-board-tails-njs/database.sqlite",
+    filename: "./database.sqlite", // Relative path
     driver: sqlite3.Database,
   });
 
@@ -19,7 +23,7 @@ export default async function UserProfile({ params }: { params: { id: string } }
   await db.close();
 
   if (!user) {
-    notFound(); // 404 if user not found
+    notFound();
   }
 
   const userName = user.name || "Anonymous User";
@@ -30,7 +34,7 @@ export default async function UserProfile({ params }: { params: { id: string } }
   return (
     <DefaultLayout>
       <div className="mx-auto max-w-242.5">
-        <Breadcrumb pageName={`${userName}'s Profile`} />
+        <Breadcrumb pageName={`${userName}\'s Profile`} /> {/* Escaped single quote */}
 
         <div className="overflow-hidden rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
           <div className="relative z-20 h-35 md:h-65">
@@ -59,12 +63,18 @@ export default async function UserProfile({ params }: { params: { id: string } }
                 {userName}
               </h3>
               <p className="font-medium">{userEmail}</p>
-              <p className="font-medium text-gray-600 dark:text-gray-400">Role: {user.userClass}</p>
+              <p className="font-medium text-gray-600 dark:text-gray-400">
+                Role: {user.userClass}
+              </p>
               {user.company && (
-                <p className="font-medium text-gray-600 dark:text-gray-400">Company: {user.company}</p>
+                <p className="font-medium text-gray-600 dark:text-gray-400">
+                  Company: {user.company}
+                </p>
               )}
               <div className="mx-auto max-w-180">
-                <h4 className="font-semibold text-black dark:text-white mt-4.5">About Me</h4>
+                <h4 className="font-semibold text-black dark:text-white mt-4.5">
+                  About Me
+                </h4>
                 <p className="mt-4.5">{bio}</p>
               </div>
             </div>

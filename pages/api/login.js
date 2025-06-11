@@ -1,39 +1,63 @@
-import sqlite3 from 'sqlite3';
-import bcrypt from 'bcrypt';
+import { NextResponse } from "next/server";
+import sqlite3 from "sqlite3";
+import bcrypt from "bcrypt";
 
-const db = new sqlite3.Database('./database.sqlite');
+const db = new sqlite3.Database("./database.sqlite");
 
-export default async (req, res) => {
-  if (req.method === 'POST') {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Please fill in all fields.' });
-    }
-
-    try {
-      db.get('SELECT * FROM users WHERE email = ?', [email], async (err, user) => {
-        if (err) {
-          return res.status(500).json({ error: 'Failed to retrieve user.' });
-        }
-
-        if (!user) {
-          return res.status(401).json({ error: 'Invalid email or password.' });
-        }
-
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-        if (!isPasswordValid) {
-          return res.status(401).json({ error: 'Invalid email or password.' });
-        }
-
-        // Handle successful login (e.g., set a session or token)
-        res.status(200).json({ message: 'Login successful.' });
-      });
-    } catch (error) {
-      res.status(500).json({ error: 'Failed to login user.' });
-    }
-  } else {
-    res.setHeader('Allow', ['POST']);
-    res.status(405).end(`Method ${req.method} Not Allowed`);
+const postHandler = async (request) => {
+  if (request.method !== "POST") {
+    return NextResponse.json(
+      { error: `Method ${request.method} Not Allowed` },
+      { status: 405, headers: { Allow: "POST" } }
+    );
   }
-}; 
+
+  const { email, password } = await request.json();
+
+  if (!email || !password) {
+    return NextResponse.json(
+      { error: "Please fill in all fields." },
+      { status: 400 }
+    );
+  }
+
+  return new Promise((resolve) => {
+    db.get(
+      "SELECT * FROM users WHERE email = ?",
+      [email],
+      async (err, user) => {
+        if (err) {
+          resolve(
+            NextResponse.json(
+              { error: "Failed to retrieve user." },
+              { status: 500 }
+            )
+          );
+        } else if (!user) {
+          resolve(
+            NextResponse.json(
+              { error: "Invalid email or password." },
+              { status: 401 }
+            )
+          );
+        } else {
+          const isPasswordValid = await bcrypt.compare(password, user.password);
+          if (!isPasswordValid) {
+            resolve(
+              NextResponse.json(
+                { error: "Invalid email or password." },
+                { status: 401 }
+              )
+            );
+          } else {
+            resolve(
+              NextResponse.json({ message: "Login successful." }, { status: 200 })
+            );
+          }
+        }
+      }
+    );
+  });
+};
+
+export { postHandler as POST };

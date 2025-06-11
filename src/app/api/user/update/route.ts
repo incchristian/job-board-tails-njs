@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import sqlite3 from "sqlite3";
 import { open } from "sqlite";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "../../auth/[...nextauth]/route";
+import { authOptions } from "@/app/api/auth/authOptions";
 import { getToken } from "next-auth/jwt";
 
 export async function GET(req: NextRequest) {
@@ -11,10 +11,10 @@ export async function GET(req: NextRequest) {
   console.log("GET /api/user/update - Session from getServerSession:", session);
 
   if (!session || !session.user?.id) {
-    const token = await getToken({ 
-      req, 
+    const token = await getToken({
+      req,
       secret: process.env.NEXTAUTH_SECRET,
-      cookieName: "next-auth.session-token"
+      cookieName: "next-auth.session-token",
     });
     console.log("GET /api/user/update - Token from getToken:", token);
 
@@ -22,20 +22,23 @@ export async function GET(req: NextRequest) {
       session = { user: { id: token.sub, name: token.name, email: token.email } };
       console.log("GET /api/user/update - Session set from token:", session);
     } else {
-      return NextResponse.json({ 
-        error: "Unauthorized - No valid session or token", 
-        session, 
-        token, 
-        cookies: req.cookies.get("next-auth.session-token") 
-      }, { status: 401 });
+      return NextResponse.json(
+        {
+          error: "Unauthorized - No valid session or token",
+          session,
+          token,
+          cookies: req.cookies.get("next-auth.session-token"),
+        },
+        { status: 401 }
+      );
     }
   }
 
   if (!session || !session.user?.id) {
-    return NextResponse.json({ 
-      error: "Unauthorized - Final check failed", 
-      session 
-    }, { status: 401 });
+    return NextResponse.json(
+      { error: "Unauthorized - Final check failed", session },
+      { status: 401 }
+    );
   }
 
   try {
@@ -61,17 +64,16 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST handler unchanged
 export async function POST(req: NextRequest) {
   console.log("POST /api/user/update - Headers:", Object.fromEntries(req.headers));
   let session = await getServerSession(authOptions);
   console.log("POST /api/user/update - Session from getServerSession:", session);
 
   if (!session || !session.user?.id) {
-    const token = await getToken({ 
-      req, 
+    const token = await getToken({
+      req,
       secret: process.env.NEXTAUTH_SECRET,
-      cookieName: "next-auth.session-token" 
+      cookieName: "next-auth.session-token",
     });
     console.log("POST /api/user/update - Token from getToken:", token);
 
@@ -79,20 +81,23 @@ export async function POST(req: NextRequest) {
       session = { user: { id: token.sub, name: token.name, email: token.email } };
       console.log("POST /api/user/update - Session set from token:", session);
     } else {
-      return NextResponse.json({ 
-        error: "Unauthorized - No valid session or token", 
-        session, 
-        token, 
-        cookies: req.cookies.get("next-auth.session-token") 
-      }, { status: 401 });
+      return NextResponse.json(
+        {
+          error: "Unauthorized - No valid session or token",
+          session,
+          token,
+          cookies: req.cookies.get("next-auth.session-token"),
+        },
+        { status: 401 }
+      );
     }
   }
 
   if (!session || !session.user?.id) {
-    return NextResponse.json({ 
-      error: "Unauthorized - Final check failed", 
-      session 
-    }, { status: 401 });
+    return NextResponse.json(
+      { error: "Unauthorized - Final check failed", session },
+      { status: 401 }
+    );
   }
 
   let body;

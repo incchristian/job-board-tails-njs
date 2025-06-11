@@ -1,4 +1,7 @@
-// src/app/jobs/all/page.tsx (partial update)
+import DefaultLayout from "@/components/Layouts/DefaultLayout";
+import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
+import JobMap from "@/app/jobs/JobsMap";
+
 export default async function JobPostsPage() {
   const jobs = await fetchAllJobs();
 
@@ -22,7 +25,6 @@ export default async function JobPostsPage() {
           </div>
         )}
       </div>
-      {/* Rest of the code remains unchanged */}
     </DefaultLayout>
   );
 }
