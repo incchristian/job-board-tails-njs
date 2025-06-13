@@ -1,30 +1,54 @@
 "use client";
-
-import { useState } from "react";
-import Header from "@/components/Header";
+import React, { useState, ReactNode } from "react";
+import { useSession } from "next-auth/react";
 import Sidebar from "@/components/Sidebar";
-import { useProfile } from "@/context/ProfileContext";
+import Header from "@/components/Header";
 
-const DefaultLayout = ({ children }) => {
+interface DefaultLayoutProps {
+  children: ReactNode;
+}
+
+const DefaultLayout: React.FC<DefaultLayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { userClass } = useProfile();
+  const { data: session, status } = useSession();
 
-  // Debug: Log the userClass to verify its value
-  console.log("DefaultLayout - userClass:", userClass);
+  console.log("DefaultLayout - userClass:", session?.user?.userClass);
 
-  // Show Sidebar only for admin users
-  const showSidebar = userClass === "admin";
+  // Check if user is admin - only admins see the sidebar
+  const isAdmin = session?.user?.userClass === "admin";
+
+  // Check if user is employer or recruiter
+  const isEmployerOrRecruiter =
+    session?.user?.userClass === "employer" ||
+    session?.user?.userClass === "recruiter";
 
   return (
-    <div className="flex min-h-screen w-full">
-      {showSidebar && (
-        <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-      )}
-      <div className="flex flex-1 flex-col w-full">
-        <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-        <main className="flex-1">
-          {children}
-        </main>
+    <div className="dark:bg-boxdark-2 dark:text-bodydark">
+      <div className="flex h-screen overflow-hidden">
+        {/* Only show sidebar for admin users */}
+        {isAdmin && (
+          <Sidebar
+            sidebarOpen={sidebarOpen}
+            setSidebarOpen={setSidebarOpen}
+            userClass={session?.user?.userClass}
+            isEmployerOrRecruiter={isEmployerOrRecruiter}
+          />
+        )}
+
+        <div className="relative flex flex-1 flex-col overflow-y-auto overflow-x-hidden">
+          <Header
+            sidebarOpen={sidebarOpen}
+            setSidebarOpen={setSidebarOpen}
+            session={session}
+            isAdmin={isAdmin}
+          />
+
+          <main>
+            <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
+              {children}
+            </div>
+          </main>
+        </div>
       </div>
     </div>
   );

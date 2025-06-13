@@ -1,13 +1,106 @@
+"use client";
 import { useEffect, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 
+interface Notification {
+  id: number;
+  type: string;
+  title: string;
+  message: string;
+  relatedId?: number;
+  isRead: boolean;
+  createdAt: string;
+}
+
 const DropdownNotification = () => {
+  const { data: session } = useSession();
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [notifying, setNotifying] = useState(true);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const trigger = useRef<any>(null);
   const dropdown = useRef<any>(null);
 
+  // Fetch notifications
+  useEffect(() => {
+    if (session) {
+      fetchNotifications();
+    }
+  }, [session]);
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await fetch("/api/notifications");
+      if (response.ok) {
+        const data = await response.json();
+        setNotifications(data.notifications);
+        setUnreadCount(
+          data.notifications.filter((n: Notification) => !n.isRead).length
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+    }
+  };
+
+  // Handle accept contact request
+  const handleAcceptContact = async (
+    employerId: number,
+    notificationId: number
+  ) => {
+    try {
+      const response = await fetch("/api/contacts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ employerId, action: "accept" }),
+      });
+
+      if (response.ok) {
+        // Mark notification as read
+        await fetch("/api/notifications", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ notificationId }),
+        });
+
+        fetchNotifications(); // Refresh notifications
+        alert("Contact request accepted!");
+      }
+    } catch (error) {
+      console.error("Error accepting contact:", error);
+    }
+  };
+
+  // Handle decline contact request
+  const handleDeclineContact = async (
+    employerId: number,
+    notificationId: number
+  ) => {
+    try {
+      const response = await fetch("/api/contacts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ employerId, action: "decline" }),
+      });
+
+      if (response.ok) {
+        // Mark notification as read
+        await fetch("/api/notifications", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ notificationId }),
+        });
+
+        fetchNotifications(); // Refresh notifications
+        alert("Contact request declined");
+      }
+    } catch (error) {
+      console.error("Error declining contact:", error);
+    }
+  };
+
+  // Close dropdown handlers
   useEffect(() => {
     const clickHandler = ({ target }: MouseEvent) => {
       if (!dropdown.current) return;
@@ -23,7 +116,6 @@ const DropdownNotification = () => {
     return () => document.removeEventListener("click", clickHandler);
   });
 
-  // close if the esc key is pressed
   useEffect(() => {
     const keyHandler = ({ keyCode }: KeyboardEvent) => {
       if (!dropdownOpen || keyCode !== 27) return;
@@ -33,24 +125,24 @@ const DropdownNotification = () => {
     return () => document.removeEventListener("keydown", keyHandler);
   });
 
+  if (!session) return null;
+
   return (
     <li className="relative">
       <Link
         ref={trigger}
         onClick={() => {
-          setNotifying(false);
           setDropdownOpen(!dropdownOpen);
         }}
         href="#"
         className="relative flex h-8.5 w-8.5 items-center justify-center rounded-full border-[0.5px] border-stroke bg-gray hover:text-primary dark:border-strokedark dark:bg-meta-4 dark:text-white"
       >
-        <span
-          className={`absolute -top-0.5 right-0 z-1 h-2 w-2 rounded-full bg-meta-1 ${
-            notifying === false ? "hidden" : "inline"
-          }`}
-        >
-          <span className="absolute -z-1 inline-flex h-full w-full animate-ping rounded-full bg-meta-1 opacity-75"></span>
-        </span>
+        {/* Notification Badge */}
+        {unreadCount > 0 && (
+          <span className="absolute -top-0.5 right-0 z-1 h-2 w-2 rounded-full bg-meta-1">
+            <span className="absolute -z-1 inline-flex h-full w-full animate-ping rounded-full bg-meta-1 opacity-75"></span>
+          </span>
+        )}
 
         <svg
           className="fill-current duration-300 ease-in-out"
@@ -76,73 +168,76 @@ const DropdownNotification = () => {
         }`}
       >
         <div className="px-4.5 py-3">
-          <h5 className="text-sm font-medium text-bodydark2">Notification</h5>
+          <h5 className="text-sm font-medium text-bodydark2">
+            Notifications {unreadCount > 0 && `(${unreadCount})`}
+          </h5>
         </div>
 
         <ul className="flex h-auto flex-col overflow-y-auto">
-          <li>
-            <Link
-              className="flex flex-col gap-2.5 border-t border-stroke px-4.5 py-3 hover:bg-gray-2 dark:border-strokedark dark:hover:bg-meta-4"
-              href="#"
-            >
-              <p className="text-sm">
-                <span className="text-black dark:text-white">
-                  Edit your information in a swipe
-                </span>{" "}
-                Sint occaecat cupidatat non proident, sunt in culpa qui officia
-                deserunt mollit anim.
-              </p>
+          {notifications.length === 0 ? (
+            <li className="px-4.5 py-3 text-center text-sm text-bodydark2">
+              No notifications
+            </li>
+          ) : (
+            notifications.map((notification) => (
+              <li key={notification.id}>
+                <div
+                  className={`flex flex-col gap-2.5 border-t border-stroke px-4.5 py-3 hover:bg-gray-2 dark:border-strokedark dark:hover:bg-meta-4 ${
+                    !notification.isRead
+                      ? "bg-blue-50 dark:bg-blue-900/20"
+                      : ""
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-black dark:text-white">
+                        {notification.title}
+                      </p>
+                      <p className="text-sm text-bodydark2 mt-1">
+                        {notification.message}
+                      </p>
+                    </div>
+                    {!notification.isRead && (
+                      <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0 mt-1"></span>
+                    )}
+                  </div>
 
-              <p className="text-xs">12 May, 2025</p>
-            </Link>
-          </li>
-          <li>
-            <Link
-              className="flex flex-col gap-2.5 border-t border-stroke px-4.5 py-3 hover:bg-gray-2 dark:border-strokedark dark:hover:bg-meta-4"
-              href="#"
-            >
-              <p className="text-sm">
-                <span className="text-black dark:text-white">
-                  It is a long established fact
-                </span>{" "}
-                that a reader will be distracted by the readable.
-              </p>
+                  {/* Contact request buttons */}
+                  {notification.type === "contact_request" &&
+                    notification.relatedId && (
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={() =>
+                            handleAcceptContact(
+                              notification.relatedId!,
+                              notification.id
+                            )
+                          }
+                          className="px-3 py-1 bg-green-500 text-white text-sm rounded hover:bg-green-600 transition-colors"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          onClick={() =>
+                            handleDeclineContact(
+                              notification.relatedId!,
+                              notification.id
+                            )
+                          }
+                          className="px-3 py-1 bg-gray-500 text-white text-sm rounded hover:bg-gray-600 transition-colors"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    )}
 
-              <p className="text-xs">24 Feb, 2025</p>
-            </Link>
-          </li>
-          <li>
-            <Link
-              className="flex flex-col gap-2.5 border-t border-stroke px-4.5 py-3 hover:bg-gray-2 dark:border-strokedark dark:hover:bg-meta-4"
-              href="#"
-            >
-              <p className="text-sm">
-                <span className="text-black dark:text-white">
-                  There are many variations
-                </span>{" "}
-                of passages of Lorem Ipsum available, but the majority have
-                suffered
-              </p>
-
-              <p className="text-xs">04 Jan, 2025</p>
-            </Link>
-          </li>
-          <li>
-            <Link
-              className="flex flex-col gap-2.5 border-t border-stroke px-4.5 py-3 hover:bg-gray-2 dark:border-strokedark dark:hover:bg-meta-4"
-              href="#"
-            >
-              <p className="text-sm">
-                <span className="text-black dark:text-white">
-                  There are many variations
-                </span>{" "}
-                of passages of Lorem Ipsum available, but the majority have
-                suffered
-              </p>
-
-              <p className="text-xs">01 Dec, 2024</p>
-            </Link>
-          </li>
+                  <p className="text-xs text-bodydark2">
+                    {new Date(notification.createdAt).toLocaleString()}
+                  </p>
+                </div>
+              </li>
+            ))
+          )}
         </ul>
       </div>
     </li>

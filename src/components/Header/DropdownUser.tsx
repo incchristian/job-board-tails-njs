@@ -100,7 +100,16 @@ const DropdownUser = ({ profilePic }: { profilePic: string }) => {
                     height="22"
                     viewBox="0 0 22 22"
                   >
-                    <rect x="4" y="2" width="14" height="18" rx="2" fill="none" stroke="currentColor" strokeWidth="1" />
+                    <rect
+                      x="4"
+                      y="2"
+                      width="14"
+                      height="18"
+                      rx="2"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1"
+                    />
                     <path d="M7 6h8M7 10h8M7 14h8" />
                   </svg>
                   Edit My Jobs
@@ -108,6 +117,28 @@ const DropdownUser = ({ profilePic }: { profilePic: string }) => {
               </li>
             </>
           )}
+
+          {/* Add My Contacts - only for employers and recruiters */}
+          {(userClass === "employer" || userClass === "recruiter") && (
+            <li>
+              <Link
+                href="/contacts"
+                className="flex items-center gap-3.5 text-sm font-medium hover:text-primary"
+              >
+                <svg
+                  className="fill-current"
+                  width="22"
+                  height="22"
+                  viewBox="0 0 22 22"
+                >
+                  <path d="M16 4a4 4 0 11-8 0 4 4 0 018 0zM23 20c0 2-1 4-3 4H2c-2 0-3-2-3-4 0-5.33 4.67-8 11-8s11 2.67 11 8z" />
+                  <path d="M19 8a3 3 0 11-6 0 3 3 0 016 0zM21 19c-.33-3.33-3-5-7-5-.86 0-1.67.1-2.4.29 1.44.9 2.4 2.43 2.4 4.21v.5h7z" />
+                </svg>
+                My Contacts
+              </Link>
+            </li>
+          )}
+
           <li>
             <Link
               href="/profile"

@@ -36,6 +36,21 @@ export default async function MyJobsPage({ searchParams }: { searchParams?: Prom
     );
   }
 
+  // Check if user is an employer OR recruiter
+  const isEmployerOrRecruiter = session?.user?.userClass === 'employer' || session?.user?.userClass === 'recruiter';
+  if (!isEmployerOrRecruiter) {
+    return (
+      <DefaultLayout>
+        <div className="container mx-auto p-6">
+          <p>Only employers and recruiters can manage jobs. You are registered as a candidate.</p>
+          <Link href="/jobs" className="text-blue-500 hover:underline">
+            Browse available jobs
+          </Link>
+        </div>
+      </DefaultLayout>
+    );
+  }
+
   const jobs = await fetchUserJobs(session.user.id);
 
   return (

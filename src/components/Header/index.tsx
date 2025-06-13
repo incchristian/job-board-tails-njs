@@ -276,13 +276,6 @@ const Header = (props: {
             <DarkModeSwitcher />
             <DropdownNotification />
             <DropdownMessage />
-            {/* Sign-Out Button */}
-            <button
-              onClick={() => signOut({ callbackUrl: "/auth/signin" })}
-              className="text-sm font-medium text-black dark:text-white hover:text-primary dark:hover:text-primary"
-            >
-              Sign Out
-            </button>
           </ul>
           <DropdownUser profilePic={profilePic} />
         </div>

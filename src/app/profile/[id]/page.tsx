@@ -4,6 +4,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import DefaultLayout from "@/components/Layouts/DefaultLayout";
+import AddToContacts from "@/components/AddToContacts";
 
 interface ProfilePageProps {
   params: { id: string };
@@ -46,6 +47,12 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
               className="h-full w-full rounded-tl-sm rounded-tr-sm object-cover object-center"
               width={970}
               height={260}
+            />
+            {/* Add to Contacts button positioned in top right corner */}
+            <AddToContacts 
+              targetUserId={id}
+              targetUserName={userName}
+              targetUserClass={user.userClass}
             />
           </div>
           <div className="px-4 pb-6 text-center lg:pb-8 xl:pb-11.5">
