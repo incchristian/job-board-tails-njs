@@ -1,123 +1,164 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/authOptions";
 import sqlite3 from "sqlite3";
 import { open } from "sqlite";
-import { existsSync } from "fs";
 
-export async function PUT(req: NextRequest, { params }) {
+export async function GET(request: NextRequest, { params }: { params: { jobId: string } }) {
   try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { jobId } = params;
+    const db = await open({
+      filename: './database.sqlite',
+      driver: sqlite3.Database,
+    });
+
+    const job = await db.get(
+      'SELECT * FROM jobs WHERE id = ?',
+      [jobId]
+    );
+
+    await db.close();
+
+    if (!job) {
+      return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+    }
+
+    // Check if user can access this job (employers can only edit their own jobs)
+    if (session.user.userClass === 'Employer' && job.employerId !== parseInt(session.user.id)) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+
+    return NextResponse.json(job);
+  } catch (error: any) {
+    console.error('Error fetching job:', error);
+    return NextResponse.json({ 
+      error: 'Internal server error', 
+      message: error.message 
+    }, { status: 500 });
+  }
+}
+
+export async function PUT(request: NextRequest, { params }: { params: { jobId: string } }) {
+  try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session || session.user.userClass !== 'Employer') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { jobId } = params;
     const {
       title,
       description,
       location,
-      logoPath,
-      lat,
-      lng,
-      country,
-      state,
       street,
       city,
+      state,
+      country,
       postalCode,
-    } = await req.json();
-
-    console.log("Received PUT request for jobId:", jobId, "with data:", {
-      title,
-      description,
-      location,
-      logoPath,
       lat,
       lng,
-      country,
-      state,
-      street,
-      city,
-      postalCode,
-    });
-
-    if (!jobId || !title || !description || !location) {
-      console.log("Validation failed: Missing required fields");
-      return NextResponse.json({ message: "Missing required fields or jobId" }, { status: 400 });
-    }
-
-    const dbPath = "C:/Projects/job-board-tails-njs/database.sqlite";
-    console.log("Checking database path:", dbPath, "Exists:", existsSync(dbPath));
-    if (!existsSync(dbPath)) {
-      throw new Error("Database file not found at specified path");
-    }
+    } = await request.json();
 
     const db = await open({
-      filename: dbPath,
+      filename: './database.sqlite',
       driver: sqlite3.Database,
     });
-    console.log("Database opened successfully");
 
-    const result = await db.run(
-      `UPDATE jobs 
-       SET title = ?, description = ?, location = ?, logoPath = ?, lat = ?, lng = ?, country = ?, state = ?, street = ?, city = ?, postalCode = ? 
-       WHERE id = ?`,
+    // Check if job exists and belongs to the user
+    const existingJob = await db.get(
+      'SELECT * FROM jobs WHERE id = ? AND employerId = ?',
+      [jobId, session.user.id]
+    );
+
+    if (!existingJob) {
+      await db.close();
+      return NextResponse.json({ error: 'Job not found or access denied' }, { status: 404 });
+    }
+
+    // Update the job
+    await db.run(
+      `UPDATE jobs SET 
+        title = ?, 
+        description = ?, 
+        location = ?, 
+        street = ?, 
+        city = ?, 
+        state = ?, 
+        country = ?, 
+        postalCode = ?, 
+        lat = ?, 
+        lng = ?
+       WHERE id = ? AND employerId = ?`,
       [
         title,
         description,
         location,
-        logoPath || null,
-        lat || null,
-        lng || null,
-        country || null,
-        state || null,
-        street || null,
-        city || null,
-        postalCode || null,
+        street,
+        city,
+        state,
+        country,
+        postalCode,
+        lat,
+        lng,
         jobId,
+        session.user.id,
       ]
     );
-    console.log("Update result:", result);
 
     await db.close();
-    console.log("Database closed");
 
-    if (result.changes === 0) {
-      console.log("No rows updated, job not found for id:", jobId);
-      return NextResponse.json({ message: "Job not found" }, { status: 404 });
-    }
-    return NextResponse.json({ message: "Job updated successfully" }, { status: 200 });
+    return NextResponse.json({ message: 'Job updated successfully' });
   } catch (error: any) {
-    console.error("Error updating job:", error.message, "Stack:", error.stack);
-    return NextResponse.json({ message: "Server error", details: error.message }, { status: 500 });
+    console.error('Error updating job:', error);
+    return NextResponse.json({ 
+      error: 'Internal server error', 
+      message: error.message 
+    }, { status: 500 });
   }
 }
 
-export async function DELETE(req: NextRequest, { params }) {
-  const { jobId } = params;
-  if (!jobId) {
-    console.log("Validation failed: Missing jobId");
-    return NextResponse.json({ message: "Missing jobId" }, { status: 400 });
-  }
+export async function DELETE(request: NextRequest, { params }: { params: { jobId: string } }) {
   try {
-    const dbPath = "C:/Projects/job-board-tails-njs/database.sqlite";
-    console.log("Checking database path for DELETE:", dbPath, "Exists:", existsSync(dbPath));
-    if (!existsSync(dbPath)) {
-      throw new Error("Database file not found at specified path");
+    const session = await getServerSession(authOptions);
+    
+    if (!session || session.user.userClass !== 'Employer') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { jobId } = params;
     const db = await open({
-      filename: dbPath,
+      filename: './database.sqlite',
       driver: sqlite3.Database,
     });
-    console.log("Database opened successfully for DELETE");
 
-    const result = await db.run("DELETE FROM jobs WHERE id = ?", [jobId]);
-    console.log("Delete result:", result);
+    // Check if job exists and belongs to the user
+    const existingJob = await db.get(
+      'SELECT * FROM jobs WHERE id = ? AND employerId = ?',
+      [jobId, session.user.id]
+    );
 
-    await db.close();
-    console.log("Database closed for DELETE");
-
-    if (result.changes === 0) {
-      console.log("No rows deleted, job not found for id:", jobId);
-      return NextResponse.json({ message: "Job not found" }, { status: 404 });
+    if (!existingJob) {
+      await db.close();
+      return NextResponse.json({ error: 'Job not found or access denied' }, { status: 404 });
     }
-    return NextResponse.json({ message: "Job deleted successfully" }, { status: 200 });
+
+    // Delete the job
+    await db.run('DELETE FROM jobs WHERE id = ? AND employerId = ?', [jobId, session.user.id]);
+    await db.close();
+
+    return NextResponse.json({ message: 'Job deleted successfully' });
   } catch (error: any) {
-    console.error("Error deleting job:", error.message, "Stack:", error.stack);
-    return NextResponse.json({ message: "Server error", details: error.message }, { status: 500 });
+    console.error('Error deleting job:', error);
+    return NextResponse.json({ 
+      error: 'Internal server error', 
+      message: error.message 
+    }, { status: 500 });
   }
 }

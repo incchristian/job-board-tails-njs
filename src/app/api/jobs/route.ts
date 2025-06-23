@@ -1,78 +1,74 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/authOptions";
 import sqlite3 from "sqlite3";
 import { open } from "sqlite";
 
-export async function GET(req: NextRequest) {
-  const employerId = req.nextUrl.searchParams.get("employerId");
-
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const employerId = searchParams.get('employerId');
+    
     const db = await open({
-      filename: "./database.sqlite",
+      filename: './database.sqlite',
       driver: sqlite3.Database,
     });
 
+    let query = `
+      SELECT j.*, u.name as employerName 
+      FROM jobs j 
+      LEFT JOIN users u ON j.employerId = u.id
+    `;
+    let params: any[] = [];
+
     if (employerId) {
-      const jobs = await db.all(
-        "SELECT id, title, description, location, employerId, logoPath, lat, lng, country, state, street, city, postalCode FROM jobs WHERE employerId = ?",
-        [employerId]
-      );
-      await db.close();
-      return NextResponse.json(jobs, { status: 200 });
-    } else {
-      const jobs = await db.all(
-        "SELECT id, title, description, location, employerId, logoPath, lat, lng, country, state, street, city, postalCode FROM jobs"
-      );
-      console.log("All jobs fetched:", jobs);
-      await db.close();
-      return NextResponse.json(jobs, { status: 200 });
+      query += ' WHERE j.employerId = ?';
+      params.push(employerId);
     }
+
+    query += ' ORDER BY j.createdAt DESC';
+
+    const jobs = await db.all(query, params);
+    await db.close();
+
+    return NextResponse.json(jobs);
   } catch (error) {
-    console.error("Error fetching jobs:", error);
-    return NextResponse.json({ message: "Server error" }, { status: 500 });
+    console.error('Error fetching jobs:', error);
+    return NextResponse.json({ error: 'Failed to fetch jobs' }, { status: 500 });
   }
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const {
-      title,
-      description,
-      location,
-      employerId,
-      logoPath,
-      lat,
-      lng,
-      country,
-      state,
-      street,
-      city,
-      postalCode,
-    } = await req.json();
-    console.log("Received job data:", {
-      title,
-      description,
-      location,
-      employerId,
-      logoPath,
-      lat,
-      lng,
-      country,
-      state,
-      street,
-      city,
-      postalCode,
-    });
-
-    if (!title || !description || !location || !employerId) {
-      return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
+    const session = await getServerSession(authOptions);
+    
+    if (!session || session.user.userClass !== 'Employer') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { 
+      title, 
+      description, 
+      location, 
+      employerId, 
+      logoPath, 
+      lat, 
+      lng, 
+      country, 
+      state, 
+      street, 
+      city, 
+      postalCode 
+    } = await request.json();
+
     const db = await open({
-      filename: "./database.sqlite",
+      filename: './database.sqlite',
       driver: sqlite3.Database,
     });
-    await db.run(
-      "INSERT INTO jobs (title, description, location, employerId, logoPath, lat, lng, country, state, street, city, postalCode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+
+    const result = await db.run(
+      `INSERT INTO jobs (title, description, location, employerId, logoPath, lat, lng, country, state, street, city, postalCode, createdAt) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
       [
         title,
         description,
@@ -88,10 +84,19 @@ export async function POST(req: NextRequest) {
         postalCode || null,
       ]
     );
+
     await db.close();
-    return NextResponse.json({ message: "Job posted successfully" }, { status: 201 });
+
+    return NextResponse.json({ 
+      success: true, 
+      jobId: result.lastID,
+      message: 'Job posted successfully'
+    });
   } catch (error: any) {
-    console.error("Error posting job:", error.message);
-    return NextResponse.json({ message: "Server error", details: error.message }, { status: 500 });
+    console.error('Error creating job:', error);
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      message: error.message 
+    }, { status: 500 });
   }
 }

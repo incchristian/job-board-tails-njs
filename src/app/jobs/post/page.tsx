@@ -7,82 +7,157 @@ import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import DefaultLayout from "@/components/Layouts/DefaultLayout";
 import Image from "next/image";
 
-const countries = ["Canada", "United States"];
-const countryCodes: { [key: string]: string } = {
-  "Canada": "ca",
-  "United States": "us",
-};
-const canadaProvinces = [
-  "Alberta", "British Columbia", "Manitoba", "New Brunswick", "Newfoundland and Labrador",
-  "Nova Scotia", "Ontario", "Prince Edward Island", "Quebec", "Saskatchewan",
-];
-const usStates = [
-  "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware",
-  "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky",
-  "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi",
-  "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico",
-  "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania",
-  "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont",
-  "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming",
-];
-
 const PostJobPage = () => {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [country, setCountry] = useState("Canada");
+  const [country, setCountry] = useState("");
   const [state, setState] = useState("");
   const [city, setCity] = useState("");
   const [street, setStreet] = useState("");
-  const [cities, setCities] = useState<string[]>([]);
   const [postalCode, setPostalCode] = useState("");
+  const [lat, setLat] = useState<number | null>(null);
+  const [lng, setLng] = useState<number | null>(null);
   const [logo, setLogo] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const autocompleteRef = useRef<HTMLInputElement>(null);
+  const mapRef = useRef<HTMLDivElement>(null);
 
+  // Enhanced autocomplete setup with better loading detection
   useEffect(() => {
-    if (state) {
-      const fetchCities = async () => {
-        const url = `/api/cities?input=${encodeURIComponent(state)}&country=${country}`;
-        try {
-          const response = await fetch(url);
-          if (!response.ok) throw new Error("Failed to fetch cities");
-          const data = await response.json();
-          setCities(data.status === "OK" ? data.cities : []);
-        } catch (err: any) {
-          setCities([]);
-          setError(`Error fetching cities: ${err.message}`);
-        }
-      };
-      fetchCities();
+    const initAutocomplete = () => {
+      if (window.google && window.google.maps && window.google.maps.places && autocompleteRef.current) {
+        console.log("Initializing Google Places Autocomplete...");
+        
+        const autocomplete = new window.google.maps.places.Autocomplete(autocompleteRef.current, {
+          types: ["address"],
+          componentRestrictions: { country: ["ca", "us"] },
+          fields: ["address_components", "geometry", "formatted_address", "place_id"],
+        });
+
+        autocomplete.addListener("place_changed", () => {
+          const place = autocomplete.getPlace();
+          
+          console.log("Place selected:", place);
+          
+          if (!place.geometry || !place.geometry.location) {
+            setError("Please select a valid address from the dropdown suggestions");
+            return;
+          }
+
+          // Extract detailed address components
+          let streetNumber = "";
+          let route = "";
+          let locality = "";
+          let adminAreaLevel1 = "";
+          let countryName = "";
+          let postalCodeValue = "";
+
+          place.address_components?.forEach((component) => {
+            const types = component.types;
+            
+            if (types.includes("street_number")) {
+              streetNumber = component.long_name;
+            }
+            if (types.includes("route")) {
+              route = component.long_name;
+            }
+            if (types.includes("locality")) {
+              locality = component.long_name;
+            }
+            if (types.includes("administrative_area_level_1")) {
+              adminAreaLevel1 = component.long_name;
+            }
+            if (types.includes("country")) {
+              countryName = component.long_name;
+            }
+            if (types.includes("postal_code")) {
+              postalCodeValue = component.long_name;
+            }
+          });
+
+          // Construct full street address
+          const fullStreet = `${streetNumber} ${route}`.trim();
+          
+          // Update all form fields
+          setStreet(fullStreet || place.formatted_address);
+          setCity(locality);
+          setState(adminAreaLevel1);
+          setCountry(countryName);
+          setPostalCode(postalCodeValue);
+          
+          // Set coordinates for accurate map placement
+          const latitude = place.geometry.location.lat();
+          const longitude = place.geometry.location.lng();
+          setLat(latitude);
+          setLng(longitude);
+          
+          console.log("Autocomplete result:", {
+            street: fullStreet,
+            city: locality,
+            state: adminAreaLevel1,
+            country: countryName,
+            postalCode: postalCodeValue,
+            coordinates: { lat: latitude, lng: longitude }
+          });
+          
+          // Clear any previous errors
+          setError("");
+        });
+        
+        console.log("Google Places Autocomplete initialized successfully");
+      } else {
+        console.log("Google Maps API not ready yet...");
+      }
+    };
+
+    // Check if Google Maps is already loaded
+    if (window.google && window.google.maps && window.google.maps.places) {
+      initAutocomplete();
     } else {
-      setCities([]);
-      setCity("");
-    }
-  }, [state, country]);
-
-  useEffect(() => {
-    if (window.google && autocompleteRef.current) {
-      const autocomplete = new window.google.maps.places.Autocomplete(autocompleteRef.current, {
-        types: ["address"],
-        componentRestrictions: { country: countryCodes[country] || "ca" },
-        fields: ["formatted_address", "geometry"],
-      });
-
-      autocomplete.addListener("place_changed", () => {
-        const place = autocomplete.getPlace();
-        if (place.formatted_address && place.geometry) {
-          setStreet(place.formatted_address);
-          const lat = place.geometry.location?.lat();
-          const lng = place.geometry.location?.lng();
-          console.log("Selected place:", { street: place.formatted_address, lat, lng });
+      // Wait for Google Maps to load with longer intervals and timeout
+      let attempts = 0;
+      const maxAttempts = 50; // 10 seconds total
+      
+      const checkGoogle = setInterval(() => {
+        attempts++;
+        console.log(`Checking for Google Maps API... Attempt ${attempts}`);
+        
+        if (window.google && window.google.maps && window.google.maps.places) {
+          console.log("Google Maps API loaded!");
+          initAutocomplete();
+          clearInterval(checkGoogle);
+        } else if (attempts >= maxAttempts) {
+          console.error("Google Maps API failed to load after 10 seconds");
+          setError("Google Maps failed to load. Please refresh the page.");
+          clearInterval(checkGoogle);
         }
+      }, 200);
+      
+      return () => clearInterval(checkGoogle);
+    }
+  }, []);
+
+  // Map preview when coordinates are available
+  useEffect(() => {
+    if (lat && lng && window.google && mapRef.current) {
+      const map = new window.google.maps.Map(mapRef.current, {
+        zoom: 15,
+        center: { lat, lng },
+      });
+      
+      // Use regular Marker instead of AdvancedMarkerElement
+      new window.google.maps.Marker({
+        position: { lat, lng },
+        map,
+        title: "Job Location",
       });
     }
-  }, [country]);
+  }, [lat, lng]);
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -94,88 +169,124 @@ const PostJobPage = () => {
     }
   };
 
+  const validateLocation = () => {
+    if (!street || !city || !state || !country) {
+      setError("Please use the address autocomplete to fill all location fields");
+      return false;
+    }
+    
+    if (!lat || !lng) {
+      setError("Please select a valid address from the autocomplete suggestions to get coordinates");
+      return false;
+    }
+    
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setSuccess("");
+    setSubmitting(true);
 
-    const location = `${street ? street + ", " : ""}${city}, ${state}, ${country}${postalCode ? " " + postalCode : ""}`;
-    console.log("Generated location:", location);
-
-    let lat, lng;
-    try {
-      const response = await fetch(`/api/geocode?address=${encodeURIComponent(location)}`);
-      if (!response.ok) throw new Error("Geocoding failed");
-      const data = await response.json();
-      if (data.status === "OK" && data.results.length > 0) {
-        lat = data.results[0].geometry.location.lat;
-        lng = data.results[0].geometry.location.lng;
-      } else {
-        throw new Error("No geocoding results");
-      }
-    } catch (err: any) {
-      setError(`Failed to geocode location: ${err.message}`);
+    if (!validateLocation()) {
+      setSubmitting(false);
       return;
     }
 
-    let logoUrl = "";
-    if (logo) {
-      const formData = new FormData();
-      formData.append("file", logo);
-      formData.append("upload_preset", "job_logos");
-      try {
-        const uploadResponse = await fetch(
-          `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
-          { method: "POST", body: formData }
-        );
-        const uploadData = await uploadResponse.json();
-        logoUrl = uploadData.secure_url || "";
-      } catch (err) {
-        setError("Failed to upload logo");
-        return;
+    try {
+      // Create location string from filled fields
+      const location = `${street}, ${city}, ${state}, ${country}${postalCode ? " " + postalCode : ""}`;
+
+      // Handle logo upload (optional)
+      let logoUrl = "";
+      if (logo) {
+        try {
+          const formData = new FormData();
+          formData.append("file", logo);
+          formData.append("upload_preset", "job_logos");
+          
+          const uploadResponse = await fetch(
+            `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
+            { method: "POST", body: formData }
+          );
+          
+          if (uploadResponse.ok) {
+            const uploadData = await uploadResponse.json();
+            logoUrl = uploadData.secure_url || "";
+          }
+        } catch (logoError) {
+          console.warn("Logo upload failed, continuing without logo:", logoError);
+        }
       }
-    }
 
-    const jobData = {
-      title,
-      description,
-      location,
-      employerId: session?.user?.id,
-      logoPath: logoUrl || null,
-      lat,
-      lng,
-      country,
-      state,
-      street,
-      city,
-      postalCode,
-    };
+      // Prepare job data with coordinates from autocomplete
+      const jobData = {
+        title,
+        description,
+        location,
+        employerId: session?.user?.id,
+        logoPath: logoUrl || null,
+        lat,
+        lng,
+        country,
+        state,
+        street,
+        city,
+        postalCode,
+      };
 
-    const response = await fetch("/api/jobs", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(jobData),
-    });
+      console.log("Submitting job data:", jobData);
 
-    if (response.ok) {
-      setSuccess("Job posted successfully!");
-      setTitle("");
-      setDescription("");
-      setCountry("Canada");
-      setState("");
-      setCity("");
-      setStreet("");
-      setPostalCode("");
-      setLogo(null);
-      setPreviewUrl("");
-      setTimeout(() => router.push("/jobs"), 1000);
-    } else {
-      const data = await response.json();
-      setError(`Failed to post job: ${data.message || "Unknown error"}`);
+      // Submit job
+      const response = await fetch("/api/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(jobData),
+      });
+
+      if (response.ok) {
+        setSuccess("Job posted successfully!");
+        
+        // Reset form
+        setTitle("");
+        setDescription("");
+        setCountry("");
+        setState("");
+        setCity("");
+        setStreet("");
+        setPostalCode("");
+        setLat(null);
+        setLng(null);
+        setLogo(null);
+        setPreviewUrl("");
+        
+        // Redirect after a short delay
+        setTimeout(() => {
+          router.push("/my-jobs");
+        }, 1500);
+      } else {
+        const errorData = await response.json();
+        setError(`Failed to post job: ${errorData.message || "Unknown error"}`);
+      }
+    } catch (err: any) {
+      console.error("Error posting job:", err);
+      setError(`An error occurred: ${err.message || "Unknown error"}`);
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  if (status === "loading") return <div>Loading...</div>;
+  if (status === "loading") {
+    return (
+      <DefaultLayout>
+        <div className="flex justify-center items-center h-64">
+          <div>Loading...</div>
+        </div>
+      </DefaultLayout>
+    );
+  }
+
   if (status === "unauthenticated" || session?.user?.userClass !== "Employer") {
     router.push("/jobs");
     return null;
@@ -185,6 +296,7 @@ const PostJobPage = () => {
     <DefaultLayout>
       <div className="mx-auto max-w-270">
         <Breadcrumb pageName="Post a Job" />
+        
         <div className="grid grid-cols-5 gap-8">
           <div className="col-span-5 xl:col-span-3">
             <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
@@ -195,14 +307,14 @@ const PostJobPage = () => {
                 <form onSubmit={handleSubmit}>
                   <div className="mb-5.5">
                     <label className="mb-3 block text-sm font-medium text-black dark:text-white" htmlFor="title">
-                      Job Title
+                      Job Title <span className="text-red-500">*</span>
                     </label>
                     <input
                       className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
                       type="text"
                       name="title"
                       id="title"
-                      placeholder="Enter job title"
+                      placeholder="Enter job title (e.g., Senior Software Developer)"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
                       required
@@ -211,14 +323,14 @@ const PostJobPage = () => {
 
                   <div className="mb-5.5">
                     <label className="mb-3 block text-sm font-medium text-black dark:text-white" htmlFor="description">
-                      Description
+                      Job Description <span className="text-red-500">*</span>
                     </label>
                     <textarea
                       className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
                       name="description"
                       id="description"
                       rows={6}
-                      placeholder="Enter job description"
+                      placeholder="Enter detailed job description, responsibilities, and requirements..."
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       required
@@ -226,119 +338,127 @@ const PostJobPage = () => {
                   </div>
 
                   <div className="mb-5.5">
-                    <label className="mb-3 block text-sm font-medium text-black dark:text-white" htmlFor="country">
-                      Country
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white" htmlFor="address">
+                      Address <span className="text-red-500">*</span>
                     </label>
-                    <select
-                      className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
-                      name="country"
-                      id="country"
-                      value={country}
-                      onChange={(e) => {
-                        setCountry(e.target.value);
-                        setState("");
-                        setCity("");
-                        setStreet("");
-                      }}
-                      required
-                    >
-                      {countries.map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                      <input
+                        ref={autocompleteRef}
+                        className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
+                        type="text"
+                        name="address"
+                        id="address"
+                        placeholder="Start typing an address and select from suggestions..."
+                        value={street}
+                        onChange={(e) => setStreet(e.target.value)}
+                        required
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-500">
+                        📍 Select from dropdown
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
+                      Type your address and select from the dropdown to auto-fill location details
+                    </p>
                   </div>
 
-                  <div className="mb-5.5">
-                    <label className="mb-3 block text-sm font-medium text-black dark:text-white" htmlFor="state">
-                      State/Province
-                    </label>
-                    <select
-                      className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
-                      name="state"
-                      id="state"
-                      value={state}
-                      onChange={(e) => {
-                        setState(e.target.value);
-                        setCity("");
-                        setStreet("");
-                      }}
-                      required
-                    >
-                      <option value="">Select {country === "Canada" ? "Province" : "State"}</option>
-                      {(country === "Canada" ? canadaProvinces : usStates).map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
+                  {/* Auto-populated fields */}
+                  <div className="grid grid-cols-1 gap-5.5 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                        City
+                      </label>
+                      <input
+                        className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
+                        type="text"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        placeholder="Auto-filled from address"
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                        State/Province
+                      </label>
+                      <input
+                        className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
+                        type="text"
+                        value={state}
+                        onChange={(e) => setState(e.target.value)}
+                        placeholder="Auto-filled from address"
+                        required
+                      />
+                    </div>
                   </div>
 
-                  <div className="mb-5.5">
-                    <label className="mb-3 block text-sm font-medium text-black dark:text-white" htmlFor="city">
-                      City
-                    </label>
-                    <select
-                      className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
-                      name="city"
-                      id="city"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      required
-                      disabled={!state}
-                    >
-                      <option value="">Select City</option>
-                      {cities.map((c, index) => (
-                        <option key={`${c}-${index}`} value={c}>{c}</option>
-                      ))}
-                    </select>
+                  <div className="grid grid-cols-1 gap-5.5 sm:grid-cols-2 mt-5.5">
+                    <div>
+                      <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                        Country
+                      </label>
+                      <input
+                        className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
+                        type="text"
+                        value={country}
+                        onChange={(e) => setCountry(e.target.value)}
+                        placeholder="Auto-filled from address"
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                        Postal/ZIP Code
+                      </label>
+                      <input
+                        className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
+                        type="text"
+                        value={postalCode}
+                        onChange={(e) => setPostalCode(e.target.value)}
+                        placeholder="Auto-filled from address"
+                      />
+                    </div>
                   </div>
 
-                  <div className="mb-5.5">
-                    <label className="mb-3 block text-sm font-medium text-black dark:text-white" htmlFor="street">
-                      Street Address
-                    </label>
-                    <input
-                      ref={autocompleteRef}
-                      className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
-                      type="text"
-                      name="street"
-                      id="street"
-                      placeholder="Enter street address (e.g., 123 Main St)"
-                      value={street}
-                      onChange={(e) => setStreet(e.target.value)}
-                      required
-                    />
-                  </div>
+                  {/* Map preview */}
+                  {lat && lng && (
+                    <div className="mt-5.5">
+                      <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                        Location Preview
+                      </label>
+                      <div ref={mapRef} className="h-48 w-full rounded border border-stroke" />
+                    </div>
+                  )}
 
-                  <div className="mb-5.5">
-                    <label className="mb-3 block text-sm font-medium text-black dark:text-white" htmlFor="postalCode">
-                      Postal/ZIP Code (Optional)
-                    </label>
-                    <input
-                      className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
-                      type="text"
-                      name="postalCode"
-                      id="postalCode"
-                      placeholder="Enter postal/ZIP code"
-                      value={postalCode}
-                      onChange={(e) => setPostalCode(e.target.value)}
-                    />
-                  </div>
+                  {error && (
+                    <div className="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded">
+                      {error}
+                    </div>
+                  )}
+                  
+                  {success && (
+                    <div className="mb-4 p-3 bg-green-100 border border-green-300 text-green-700 rounded">
+                      {success}
+                    </div>
+                  )}
 
-                  {error && <p className="text-red-500 mb-4">{error}</p>}
-                  {success && <p className="text-green-500 mb-4">{success}</p>}
-
-                  <div className="flex justify-end gap-4.5">
+                  <div className="flex justify-end gap-4.5 mt-6">
                     <button
                       className="flex justify-center rounded border border-stroke px-6 py-2 font-medium text-black hover:shadow-1 dark:border-strokedark dark:text-white"
                       type="button"
                       onClick={() => router.push("/jobs")}
+                      disabled={submitting}
                     >
                       Cancel
                     </button>
                     <button
-                      className="flex justify-center rounded bg-primary px-6 py-2 font-medium text-gray hover:bg-opacity-90"
+                      className="flex justify-center rounded bg-primary px-6 py-2 font-medium text-gray hover:bg-opacity-90 disabled:opacity-50"
                       type="submit"
+                      disabled={submitting}
                     >
-                      Post Job
+                      {submitting ? "Posting..." : "Post Job"}
                     </button>
                   </div>
                 </form>
@@ -346,17 +466,22 @@ const PostJobPage = () => {
             </div>
           </div>
 
+          {/* Logo upload section remains the same */}
           <div className="col-span-5 xl:col-span-2">
             <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
               <div className="border-b border-stroke px-7 py-4 dark:border-strokedark">
-                <h3 className="font-medium text-black dark:text-white">Company Logo</h3>
+                <h3 className="font-medium text-black dark:text-white">Company Logo (Optional)</h3>
               </div>
               <div className="p-7">
                 <div className="mb-4 flex items-center gap-3">
                   {previewUrl ? (
-                    <Image src={previewUrl} width={112} height={112} alt="Job Logo" />
+                    <Image src={previewUrl} width={112} height={112} alt="Job Logo" className="rounded" />
                   ) : (
-                    <div className="h-12 w-12 rounded-full bg-gray-2 dark:bg-meta-4"></div>
+                    <div className="h-12 w-12 rounded-full bg-gray-2 dark:bg-meta-4 flex items-center justify-center">
+                      <svg className="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                      </svg>
+                    </div>
                   )}
                 </div>
                 <div className="relative mb-5.5 block w-full cursor-pointer appearance-none rounded border border-dashed border-primary bg-gray px-4 py-4 dark:bg-meta-4 sm:py-7.5">
@@ -375,7 +500,7 @@ const PostJobPage = () => {
                       </svg>
                     </span>
                     <p><span className="text-primary">Upload Company Logo</span></p>
-                    <p className="mt-1.5">Image (max 112x112px)</p>
+                    <p className="mt-1.5 text-xs">PNG, JPG, GIF up to 10MB</p>
                   </div>
                 </div>
               </div>

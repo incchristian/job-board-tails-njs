@@ -1,162 +1,183 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
-interface JobWithCoords {
+interface Job {
   id: number;
   title: string;
-  description: string | null;
-  location: string | null;
-  employerId: number;
-  logoPath: string | null;
-  lat: number;
-  lng: number;
-  country: string | null;
-  state: string | null;
-  street: string | null;
-  city: string | null;
-  postalCode: string | null;
+  description: string;
+  location: string;
+  lat?: number;
+  lng?: number;
 }
 
 interface JobsMapProps {
-  jobs: JobWithCoords[];
+  jobs: Job[];
+  fullScreen?: boolean;
 }
 
-export default function JobsMap({ jobs }: JobsMapProps) {
+declare global {
+  interface Window {
+    google: any;
+    initMap: () => void;
+  }
+}
+
+const JobsMap: React.FC<JobsMapProps> = ({ jobs, fullScreen = false }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
-  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
+  const [map, setMap] = useState<any>(null);
+  const markersRef = useRef<any[]>([]);
+  const [scriptLoaded, setScriptLoaded] = useState(false);
 
-  console.log("JobsMap component rendered with jobs:", jobs);
-
-  const loadGoogleMapsScript = () => {
-    if (window.google) {
-      console.log("Google Maps API already loaded, initializing map...");
-      initMap();
+  // Check if Google Maps script is already loaded
+  useEffect(() => {
+    if (window.google && window.google.maps) {
+      setMapLoaded(true);
+      setScriptLoaded(true);
       return;
     }
 
-    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "YOUR_API_KEY";
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,marker`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      console.log("Google Maps API script loaded successfully");
-      initMap();
-    };
-    script.onerror = () => {
-      console.error("Failed to load Google Maps API script");
-      setMapLoaded(false);
-    };
-    document.head.appendChild(script);
-  };
-
-  const initMap = () => {
-    if (!window.google || !mapRef.current) {
-      console.error("Cannot initialize map:", {
-        google: !!window.google,
-        mapRef: !!mapRef.current,
+    // Check if script is already being loaded
+    const existingScript = document.querySelector(
+      'script[src*="maps.googleapis.com"]'
+    );
+    if (existingScript) {
+      existingScript.addEventListener("load", () => {
+        setMapLoaded(true);
+        setScriptLoaded(true);
       });
       return;
     }
 
-    const firstValidJob = jobs.find(
-      (job) => job.lat !== null && job.lng !== null && !isNaN(job.lat) && !isNaN(job.lng)
-    );
-    const defaultCenter = firstValidJob
-      ? { lat: firstValidJob.lat, lng: firstValidJob.lng }
-      : { lat: 45.5017, lng: -73.5673 }; // Montreal fallback
+    // Load Google Maps script
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&loading=async`;
+    script.async = true;
+    script.defer = true;
 
-    const map = new window.google.maps.Map(mapRef.current, {
-      zoom: firstValidJob ? 12 : 4,
-      center: defaultCenter,
-      mapId: "job-map", // Replace with your actual Map ID from Google Cloud Console
-    });
+    script.onload = () => {
+      setMapLoaded(true);
+      setScriptLoaded(true);
+    };
 
-    infoWindowRef.current = new window.google.maps.InfoWindow();
+    script.onerror = () => {
+      console.error("Failed to load Google Maps script");
+    };
 
-    let markerCount = 0;
-    jobs.forEach((job) => {
-      if (job.lat !== null && job.lng !== null && !isNaN(job.lat) && !isNaN(job.lng)) {
-        const marker = new window.google.maps.marker.AdvancedMarkerElement({
-          position: { lat: job.lat, lng: job.lng },
-          map,
-          title: job.title,
-        });
+    document.head.appendChild(script);
+  }, []);
 
-        marker.addListener("click", () => {
-          if (infoWindowRef.current) {
-            const content = `
-              <div style="max-width: 300px; padding: 10px;">
-                <h3 style="margin: 0 0 5px; font-size: 16px; font-weight: bold;">${job.title}</h3>
-                <p style="margin: 0 0 5px; font-size: 14px;">${job.description || "No description available"}</p>
-                <p style="margin: 0; font-size: 14px; color: #555;">Location: ${job.location || "N/A"}</p>
-              </div>
-            `;
-            infoWindowRef.current.setContent(content);
-            infoWindowRef.current.open(map, marker);
-          }
-        });
-
-        markerCount++;
-      }
-    });
-
-    console.log(`Map initialized with ${markerCount} markers`);
-    setMapLoaded(true);
-  };
-
-  const openMapInPopup = () => {
-    // Store jobs data in sessionStorage to pass to the pop-up
-    sessionStorage.setItem("jobsForMap", JSON.stringify(jobs));
-
-    // Ensure the full URL is used for the pop-up to avoid routing issues
-    const url = window.location.origin + "/jobs/map-popup";
-    const popup = window.open(
-      url,
-      "MapPopup",
-      "width=800,height=600,resizable=yes,scrollbars=yes"
-    );
-
-    if (popup) {
-      popup.focus();
-      // Ensure the pop-up loads the map by reloading after a short delay
-      setTimeout(() => {
-        popup.location.href = url;
-      }, 100);
-    } else {
-      console.error("Failed to open pop-up window. Please allow pop-ups for this site.");
-    }
-  };
-
+  // Initialize map
   useEffect(() => {
-    loadGoogleMapsScript();
-  }, [jobs]); // Only re-run if jobs change
+    if (!mapLoaded || !mapRef.current || map) return;
+
+    const initMap = () => {
+      const mapOptions = {
+        center: { lat: 40.7128, lng: -74.006 }, // Default to NYC
+        zoom: 10,
+        mapTypeId: "roadmap",
+        disableDefaultUI: false,
+        zoomControl: true,
+        streetViewControl: false,
+        fullscreenControl: false,
+        styles: [
+          {
+            featureType: "poi.business",
+            stylers: [{ visibility: "off" }],
+          },
+        ],
+      };
+
+      const newMap = new window.google.maps.Map(mapRef.current, mapOptions);
+      setMap(newMap);
+    };
+
+    if (window.google && window.google.maps) {
+      initMap();
+    }
+  }, [mapLoaded, map]);
+
+  // Add markers when jobs change (optimized)
+  useEffect(() => {
+    if (!map || !jobs.length) return;
+
+    // Clear existing markers
+    markersRef.current.forEach((marker) => marker.setMap(null));
+    markersRef.current = [];
+
+    // Get bounds for auto-fitting
+    const bounds = new window.google.maps.LatLngBounds();
+    let hasValidCoords = false;
+
+    jobs.forEach((job, index) => {
+      // Mock coordinates if not provided (use consistent seeded random)
+      const seedLat = 40.7128 + (((job.id * 123) % 100) - 50) * 0.002;
+      const seedLng = -74.006 + (((job.id * 456) % 100) - 50) * 0.002;
+
+      const lat = job.lat || seedLat;
+      const lng = job.lng || seedLng;
+
+      const position = { lat, lng };
+      bounds.extend(position);
+      hasValidCoords = true;
+
+      // Create simple marker for better performance
+      const marker = new window.google.maps.Marker({
+        position: position,
+        map: map,
+        title: job.title,
+        optimized: true, // Better performance
+      });
+
+      // Add click listener with simple info window
+      marker.addListener("click", () => {
+        const infoWindow = new window.google.maps.InfoWindow({
+          content: `
+            <div style="padding: 8px; max-width: 200px; font-family: Arial, sans-serif;">
+              <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight: bold;">${job.title}</h4>
+              <p style="margin: 0 0 4px 0; color: #666; font-size: 12px;">📍 ${job.location}</p>
+              <a href="/jobs/${job.id}" style="color: #3B82F6; text-decoration: none; font-size: 12px;">View Details →</a>
+            </div>
+          `,
+        });
+        infoWindow.open(map, marker);
+      });
+
+      markersRef.current.push(marker);
+    });
+
+    // Fit map to markers with slight delay for better UX
+    if (hasValidCoords) {
+      setTimeout(() => {
+        if (jobs.length > 1) {
+          map.fitBounds(bounds);
+        } else {
+          map.setCenter(bounds.getCenter());
+          map.setZoom(12);
+        }
+      }, 100);
+    }
+  }, [map, jobs]);
 
   return (
-    <div className="relative h-96 w-screen">
-      {/* Map Container */}
-      <div ref={mapRef} className="h-full w-full" />
-
-      {/* Button to Open Map in Pop-Up */}
-      <button
-        onClick={openMapInPopup}
-        className="absolute top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-md shadow-md hover:bg-blue-600 z-20"
-      >
-        Open Full-Screen Map
-      </button>
-
-      {/* Loading Animation */}
-      {!mapLoaded && (
-        <div
-          className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-80 z-10"
-        >
-          <div
-            className="w-10 h-10 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"
-          />
+    <div className="relative w-full h-full">
+      {!scriptLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800 z-20">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-2 text-sm text-bodydark2">Loading map...</p>
+          </div>
         </div>
       )}
+
+      <div
+        ref={mapRef}
+        className={`w-full h-full ${fullScreen ? "min-h-screen" : "min-h-[320px]"}`}
+        style={{ opacity: scriptLoaded ? 1 : 0.3 }}
+      />
     </div>
   );
-}
+};
+
+export default JobsMap;

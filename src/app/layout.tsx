@@ -14,26 +14,29 @@ import Loader from "@/components/common/Loader";
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [loading, setLoading] = useState<boolean>(true);
-
-  useEffect(() => {
-    setTimeout(() => setLoading(false), 1000);
-  }, []);
-
+}) {
   return (
     <html lang="en">
+      <head>
+        {/* Add Google Maps JavaScript API */}
+        <script
+          async
+          defer
+          src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`}
+        ></script>
+      </head>
       <body suppressHydrationWarning={true}>
-        <SessionProvider>
-          <ProfileProvider> {/* Wrap children with ProfileProvider */}
-            <div className="dark:bg-boxdark-2 dark:text-bodydark">
-              {loading ? <Loader /> : children}
-            </div>
-          </ProfileProvider>
-        </SessionProvider>
+        <div className="dark:bg-boxdark-2 dark:text-bodydark">
+          <SessionProvider
+            session={null} // Force fresh session check
+            refetchInterval={5 * 60} // Refetch every 5 minutes
+            refetchOnWindowFocus={true}
+          >
+            {children}
+          </SessionProvider>
+        </div>
       </body>
     </html>
   );

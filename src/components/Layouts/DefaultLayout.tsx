@@ -3,55 +3,57 @@ import React, { useState, ReactNode } from "react";
 import { useSession } from "next-auth/react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
+import SessionDebug from "@/components/Debug/SessionDebug";
 
-interface DefaultLayoutProps {
-  children: ReactNode;
-}
-
-const DefaultLayout: React.FC<DefaultLayoutProps> = ({ children }) => {
+export default function DefaultLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { data: session } = useSession();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { data: session, status } = useSession();
 
-  console.log("DefaultLayout - userClass:", session?.user?.userClass);
-
-  // Check if user is admin - only admins see the sidebar
-  const isAdmin = session?.user?.userClass === "admin";
-
-  // Check if user is employer or recruiter
-  const isEmployerOrRecruiter =
-    session?.user?.userClass === "employer" ||
-    session?.user?.userClass === "recruiter";
+  // Only show sidebar for Admin users
+  const showSidebar = session?.user?.userClass === "Admin";
 
   return (
-    <div className="dark:bg-boxdark-2 dark:text-bodydark">
-      <div className="flex h-screen overflow-hidden">
-        {/* Only show sidebar for admin users */}
-        {isAdmin && (
-          <Sidebar
-            sidebarOpen={sidebarOpen}
-            setSidebarOpen={setSidebarOpen}
-            userClass={session?.user?.userClass}
-            isEmployerOrRecruiter={isEmployerOrRecruiter}
-          />
+    <>
+      {/* <!-- ===== Page Wrapper Start ===== --> */}
+      <div className="flex">
+        {/* <!-- ===== Sidebar Start (Only for Admin) ===== --> */}
+        {showSidebar && (
+          <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
         )}
+        {/* <!-- ===== Sidebar End ===== --> */}
 
-        <div className="relative flex flex-1 flex-col overflow-y-auto overflow-x-hidden">
+        {/* <!-- ===== Content Area Start ===== --> */}
+        <div
+          className={`relative flex flex-1 flex-col ${
+            showSidebar ? "lg:ml-72.5" : ""
+          }`}
+        >
+          {/* <!-- ===== Header Start ===== --> */}
           <Header
             sidebarOpen={sidebarOpen}
             setSidebarOpen={setSidebarOpen}
-            session={session}
-            isAdmin={isAdmin}
+            showSidebarToggle={showSidebar}
           />
+          {/* <!-- ===== Header End ===== --> */}
 
+          {/* <!-- ===== Main Content Start ===== --> */}
           <main>
             <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
               {children}
             </div>
           </main>
+          {/* <!-- ===== Main Content End ===== --> */}
         </div>
+        {/* <!-- ===== Content Area End ===== --> */}
       </div>
-    </div>
-  );
-};
+      {/* <!-- ===== Page Wrapper End ===== --> */}
 
-export default DefaultLayout;
+      {/* Debug component - only shows in development */}
+      <SessionDebug />
+    </>
+  );
+}
