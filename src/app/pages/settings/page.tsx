@@ -21,6 +21,17 @@ const Settings = () => {
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(true);
 
+  // Recruiter-specific state variables
+  const [recruiterSpecialization, setRecruiterSpecialization] = useState("");
+  const [recruiterExperience, setRecruiterExperience] = useState("");
+  const [recruiterBio, setRecruiterBio] = useState("");
+  const [recruiterSkills, setRecruiterSkills] = useState("");
+  const [recruiterLocation, setRecruiterLocation] = useState("");
+  const [recruiterSuccessRate, setRecruiterSuccessRate] = useState("");
+  const [recruiterAvgTimeToFill, setRecruiterAvgTimeToFill] = useState("");
+  const [recruiterMinimumFee, setRecruiterMinimumFee] = useState("");
+  const [recruiterCertifications, setRecruiterCertifications] = useState("");
+
   const trigger = useRef<HTMLButtonElement>(null);
   const dropdown = useRef<HTMLDivElement>(null);
 
@@ -267,55 +278,167 @@ const Settings = () => {
                     />
                   </div>
 
-                  <div className="mb-5.5">
-                    <label
-                      className="mb-3 block text-sm font-medium text-black dark:text-white"
-                      htmlFor="bio"
-                    >
-                      BIO
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-4.5 top-4">
-                        <svg
-                          className="fill-current"
-                          width="20"
-                          height="20"
-                          viewBox="0 0 20 20"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
+                  {/* Recruiter-Specific Fields */}
+                  {session?.user.userClass === "Recruiter" && (
+                    <>
+                      {/* Specialization */}
+                      <div className="w-full xl:w-1/2">
+                        <label className="mb-2.5 block text-black dark:text-white">
+                          Industry Specialization
+                        </label>
+                        <select
+                          value={recruiterSpecialization}
+                          onChange={(e) => setRecruiterSpecialization(e.target.value)}
+                          className="w-full rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                         >
-                          <g opacity="0.8" clipPath="url(#clip0_88_10224)">
-                            <path
-                              fillRule="evenodd"
-                              clipRule="evenodd"
-                              d="M1.56524 3.23223C2.03408 2.76339 2.66997 2.5 3.33301 2.5H9.16634C9.62658 2.5 9.99967 2.8731 9.99967 3.33333C9.99967 3.79357 9.62658 4.16667 9.16634 4.16667H3.33301C3.11199 4.16667 2.90003 4.25446 2.74375 4.41074C2.58747 4.56702 2.49967 4.77899 2.49967 5V16.6667C2.49967 16.8877 2.58747 17.0996 2.74375 17.2559C2.90003 17.4122 3.11199 17.5 3.33301 17.5H14.9997C15.2207 17.5 15.4326 17.4122 15.5889 17.2559C15.7452 17.0996 15.833 16.8877 15.833 16.6667V10.8333C15.833 10.3731 16.2061 10 16.6663 10C17.1266 10 17.4997 10.3731 17.4997 10.8333V16.6667C17.4997 17.3297 17.2363 17.9656 16.7674 18.4344C16.2986 18.9033 15.6627 19.1667 14.9997 19.1667H3.33301C2.66997 19.1667 2.03408 18.9033 1.56524 18.4344C1.0964 17.9656 0.833008 17.3297 0.833008 16.6667V5C0.833008 4.33696 1.0964 3.70107 1.56524 3.23223Z"
-                              fill=""
-                            />
-                            <path
-                              fillRule="evenodd"
-                              clipRule="evenodd"
-                              d="M16.6664 2.39884C16.4185 2.39884 16.1809 2.49729 16.0056 2.67253L8.25216 10.426L7.81167 12.188L9.57365 11.7475L17.3271 3.99402C17.5023 3.81878 17.6008 3.5811 17.6008 3.33328C17.6008 3.08545 17.5023 2.84777 17.3271 2.67253C17.1519 2.49729 16.9142 2.39884 16.6664 2.39884ZM14.8271 1.49402C15.3149 1.00622 15.9765 0.732178 16.6664 0.732178C17.3562 0.732178 18.0178 1.00622 18.5056 1.49402C18.9934 1.98182 19.2675 2.64342 19.2675 3.33328C19.2675 4.02313 18.9934 4.68473 18.5056 5.17253L10.5889 13.0892C10.4821 13.196 10.3483 13.2718 10.2018 13.3084L6.86847 14.1417C6.58449 14.2127 6.28409 14.1295 6.0771 13.9225C5.87012 13.7156 5.78691 13.4151 5.85791 13.1312L6.69124 9.79783C6.72787 9.65131 6.80364 9.51749 6.91044 9.41069L14.8271 1.49402Z"
-                              fill=""
-                            />
-                          </g>
-                          <defs>
-                            <clipPath id="clip0_88_10224">
-                              <rect width="20" height="20" fill="white" />
-                            </clipPath>
-                          </defs>
-                        </svg>
-                      </span>
-                      <textarea
-                        className="w-full rounded border border-stroke bg-gray py-3 pl-11.5 pr-4.5 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
-                        name="bio"
-                        id="bio"
-                        rows={6}
-                        placeholder="Write your bio here"
-                        value={bio}
-                        onChange={(e) => setBio(e.target.value)}
-                      />
-                    </div>
-                  </div>
+                          <option value="">Select Industry</option>
+                          <option value="Technology & IT">Technology & IT</option>
+                          <option value="Healthcare & Medical">Healthcare & Medical</option>
+                          <option value="Finance & Banking">Finance & Banking</option>
+                          <option value="Engineering">Engineering</option>
+                          <option value="Sales & Marketing">Sales & Marketing</option>
+                          <option value="Legal">Legal</option>
+                          <option value="Education">Education</option>
+                          <option value="Manufacturing">Manufacturing</option>
+                          <option value="Retail & Consumer">Retail & Consumer</option>
+                          <option value="Government & Non-Profit">Government & Non-Profit</option>
+                          <option value="General/Multi-Industry">General/Multi-Industry</option>
+                        </select>
+                      </div>
+
+                      {/* Experience Years */}
+                      <div className="w-full xl:w-1/2">
+                        <label className="mb-2.5 block text-black dark:text-white">
+                          Years of Recruiting Experience
+                        </label>
+                        <select
+                          value={recruiterExperience}
+                          onChange={(e) => setRecruiterExperience(e.target.value)}
+                          className="w-full rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                        >
+                          <option value="">Select Experience</option>
+                          <option value="1-2 years">1-2 years</option>
+                          <option value="3-5 years">3-5 years</option>
+                          <option value="6-10 years">6-10 years</option>
+                          <option value="11-15 years">11-15 years</option>
+                          <option value="16+ years">16+ years</option>
+                        </select>
+                      </div>
+
+                      {/* Professional Bio */}
+                      <div className="w-full">
+                        <label className="mb-2.5 block text-black dark:text-white">
+                          Professional Bio
+                        </label>
+                        <textarea
+                          rows={4}
+                          placeholder="Tell employers about your recruiting approach, success stories, and what makes you unique..."
+                          value={recruiterBio}
+                          onChange={(e) => setRecruiterBio(e.target.value)}
+                          className="w-full rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                        ></textarea>
+                      </div>
+
+                      {/* Recruiting Skills */}
+                      <div className="w-full">
+                        <label className="mb-2.5 block text-black dark:text-white">
+                          Recruiting Specialties
+                        </label>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                          {["Executive Search", "Technical Recruiting", "Volume Recruiting", "Contract Staffing", "Direct Hire", "Remote Recruiting", "International Recruiting", "Diversity Recruiting", "Campus Recruiting", "Executive Coaching"].map((skill) => (
+                            <label key={skill} className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                checked={recruiterSkills.includes(skill)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setRecruiterSkills(prev => prev ? `${prev}, ${skill}` : skill);
+                                  } else {
+                                    setRecruiterSkills(prev => prev.split(', ').filter(s => s !== skill).join(', '));
+                                  }
+                                }}
+                                className="rounded border-stroke"
+                              />
+                              <span className="text-sm text-black dark:text-white">{skill}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Operating Location */}
+                      <div className="w-full xl:w-1/2">
+                        <label className="mb-2.5 block text-black dark:text-white">
+                          Operating Location/Region
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g., New York Metro, Remote/National, California"
+                          value={recruiterLocation}
+                          onChange={(e) => setRecruiterLocation(e.target.value)}
+                          className="w-full rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                        />
+                      </div>
+
+                      {/* Success Rate */}
+                      <div className="w-full xl:w-1/2">
+                        <label className="mb-2.5 block text-black dark:text-white">
+                          Success Rate (%)
+                        </label>
+                        <input
+                          type="number"
+                          placeholder="e.g., 85"
+                          min="0"
+                          max="100"
+                          value={recruiterSuccessRate}
+                          onChange={(e) => setRecruiterSuccessRate(e.target.value)}
+                          className="w-full rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                        />
+                      </div>
+
+                      {/* Average Time to Fill */}
+                      <div className="w-full xl:w-1/2">
+                        <label className="mb-2.5 block text-black dark:text-white">
+                          Average Time to Fill (Days)
+                        </label>
+                        <input
+                          type="number"
+                          placeholder="e.g., 30"
+                          min="1"
+                          value={recruiterAvgTimeToFill}
+                          onChange={(e) => setRecruiterAvgTimeToFill(e.target.value)}
+                          className="w-full rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                        />
+                      </div>
+
+                      {/* Minimum Fee */}
+                      <div className="w-full xl:w-1/2">
+                        <label className="mb-2.5 block text-black dark:text-white">
+                          Fee Structure/Minimum Fee
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g., 20% of salary, $5,000 minimum"
+                          value={recruiterMinimumFee}
+                          onChange={(e) => setRecruiterMinimumFee(e.target.value)}
+                          className="w-full rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                        />
+                      </div>
+
+                      {/* Certifications */}
+                      <div className="w-full">
+                        <label className="mb-2.5 block text-black dark:text-white">
+                          Professional Certifications
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g., CIR, PHR, SHRM-CP, LinkedIn Certified Professional Recruiter"
+                          value={recruiterCertifications}
+                          onChange={(e) => setRecruiterCertifications(e.target.value)}
+                          className="w-full rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                        />
+                      </div>
+                    </>
+                  )}
 
                   {error && <p className="text-red-500 mb-4">{error}</p>}
                   {success && <p className="text-green-500 mb-4">{success}</p>}

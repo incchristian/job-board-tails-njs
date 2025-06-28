@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import JobDetailsClient from "./JobDetailsClient";
 
-export default function JobDetailsPage({ params }: { params: { id: string } }) {
+export default function JobDetailsPage() {
+  const params = useParams();
   const { data: session, status } = useSession();
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -13,23 +15,34 @@ export default function JobDetailsPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     const fetchJob = async () => {
       try {
+        console.log("Fetching job with ID:", params.id);
         const response = await fetch(`/api/jobs/${params.id}`);
+        console.log("Response status:", response.status);
+
         if (response.ok) {
           const jobData = await response.json();
-          setJob(jobData);
+          console.log("Job data received:", jobData);
+
+          // The API returns { job: ... }, so extract the job
+          setJob(jobData.job || jobData);
         } else if (response.status === 404) {
           setError("Job not found");
         } else {
+          const errorData = await response.json();
+          console.error("API Error:", errorData);
           setError("Failed to load job");
         }
       } catch (err) {
+        console.error("Fetch error:", err);
         setError("Failed to load job");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchJob();
+    if (params.id) {
+      fetchJob();
+    }
   }, [params.id]);
 
   if (loading) {

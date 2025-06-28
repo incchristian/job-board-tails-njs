@@ -100,6 +100,57 @@ const DropdownNotification = () => {
     }
   };
 
+  // Add job hiring handlers
+  const handleAcceptJob = async (jobId: number, notificationId: number) => {
+    try {
+      const response = await fetch("/api/jobs/accept-assignment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId, action: "accept" }),
+      });
+
+      if (response.ok) {
+        // Mark notification as read
+        await fetch("/api/notifications", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ notificationId }),
+        });
+
+        fetchNotifications(); // Refresh notifications
+        alert("Job assignment accepted! Check your dashboard.");
+      }
+    } catch (error) {
+      console.error("Error accepting job:", error);
+      alert("Failed to accept job assignment");
+    }
+  };
+
+  const handleDeclineJob = async (jobId: number, notificationId: number) => {
+    try {
+      const response = await fetch("/api/jobs/accept-assignment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId, action: "decline" }),
+      });
+
+      if (response.ok) {
+        // Mark notification as read
+        await fetch("/api/notifications", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ notificationId }),
+        });
+
+        fetchNotifications(); // Refresh notifications
+        alert("Job assignment declined");
+      }
+    } catch (error) {
+      console.error("Error declining job:", error);
+      alert("Failed to decline job assignment");
+    }
+  };
+
   // Close dropdown handlers
   useEffect(() => {
     const clickHandler = ({ target }: MouseEvent) => {
@@ -204,7 +255,7 @@ const DropdownNotification = () => {
 
                   {/* Contact request buttons */}
                   {notification.type === "contact_request" &&
-                    notification.relatedId && (
+                    notification.relatedId && !notification.isRead && (
                       <div className="flex gap-2 mt-2">
                         <button
                           onClick={() =>
@@ -228,6 +279,59 @@ const DropdownNotification = () => {
                         >
                           Decline
                         </button>
+                      </div>
+                    )}
+
+                  {/* Job hiring buttons for recruiters */}
+                  {notification.type === "job_hired" &&
+                    notification.relatedId &&
+                    !notification.isRead &&
+                    session?.user.userClass === "Recruiter" && (
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={() =>
+                            handleAcceptJob(
+                              notification.relatedId!,
+                              notification.id
+                            )
+                          }
+                          className="px-3 py-1 bg-green-500 text-white text-sm rounded hover:bg-green-600 transition-colors"
+                        >
+                          Accept Job
+                        </button>
+                        <button
+                          onClick={() =>
+                            handleDeclineJob(
+                              notification.relatedId!,
+                              notification.id
+                            )
+                          }
+                          className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors"
+                        >
+                          Decline Job
+                        </button>
+                        <Link
+                          href={`/jobs/${notification.relatedId}`}
+                          className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors"
+                          onClick={() => setDropdownOpen(false)}
+                        >
+                          View Details
+                        </Link>
+                      </div>
+                    )}
+
+                  {/* Show link to dashboard for accepted jobs */}
+                  {notification.type === "job_hired" &&
+                    notification.isRead &&
+                    session?.user.userClass === "Recruiter" && (
+                      <div className="mt-2">
+                        <Link
+                          href="/recruiter-dashboard"
+                          className="px-3 py-1 bg-primary text-white text-sm rounded hover:bg-opacity-90 transition-colors"
+                          onClick={() => setDropdownOpen(false)}
+                        >
+                          Go to Dashboard
+                        </Link>
                       </div>
                     )}
 

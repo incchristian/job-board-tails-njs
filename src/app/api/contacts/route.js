@@ -7,8 +7,9 @@ import { open } from 'sqlite';
 export async function POST(request) {
   try {
     const session = await getServerSession(authOptions);
-    
-    if (!session || session.user.userClass !== 'employer') {
+
+    // Fix case sensitivity - accept both 'employer' and 'Employer'
+    if (!session || (session.user.userClass.toLowerCase() !== 'employer')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -53,7 +54,7 @@ export async function POST(request) {
 export async function PATCH(request) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

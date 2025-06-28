@@ -37,7 +37,7 @@ const DropdownUser = () => {
 
         <span className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center">
           <span className="text-black font-medium">
-            {session.user?.name?.charAt(0).toUpperCase() || "U"}
+            {session.user?.name?.charAt(0).toUpperCase() || "U"}       
           </span>
         </span>
 
@@ -52,7 +52,7 @@ const DropdownUser = () => {
           <path
             fillRule="evenodd"
             clipRule="evenodd"
-            d="M0.410765 0.910734C0.736202 0.585297 1.26384 0.585297 1.58928 0.910734L6.00002 5.32148L10.4108 0.910734C10.7362 0.585297 11.2638 0.585297 11.5893 0.910734C11.9147 1.23617 11.9147 1.76381 11.5893 2.08924L6.58928 7.08924C6.26384 7.41468 5.7362 7.41468 5.41077 7.08924L0.410765 2.08924C0.0853277 1.76381 0.0853277 1.23617 0.410765 0.910734Z"
+            d="M0.410765 0.910734C0.736202 0.585297 1.26384 0.585297 1.58928 0.910734L6.00002 5.32148L10.4108 0.910734C10.7362 0.585297 11.2638 0.585297 11.5893 0.910734C11.9147 1.23617 11.9147 1.76381 11.5893 2.08924L6.58928 7.08924C6.26384 7.41468 5.7362 7.41468 5.41077 7.08924L0.410765 2.08924C0.0853277 1.76381 0.0853277 1.23617 0.410765 0.910734Z"  
             fill=""
           />
         </svg>
@@ -112,13 +112,13 @@ const DropdownUser = () => {
               </Link>
             </li>
 
-            {/* Show different menu items based on user type */}
+            {/* Show different menu items based on user type */}       
             {session.user.userClass === "Employer" && (
               <>
                 <li>
                   <Link
                     href="/my-jobs"
-                    className="flex items-center gap-3.5 text-sm font-medium duration-300 ease-in-out hover:text-primary lg:text-base"
+                    className="flex items-center gap-3.5 text-sm font-medium duration-300 ease-in-out hover:text-primary lg:text-base"        
                     onClick={() => setDropdownOpen(false)}
                   >
                     <svg
@@ -139,8 +139,8 @@ const DropdownUser = () => {
                 </li>
                 <li>
                   <Link
-                    href="/jobs/post"
-                    className="flex items-center gap-3.5 text-sm font-medium duration-300 ease-in-out hover:text-primary lg:text-base"
+                    href="/my-contacts"
+                    className="flex items-center gap-3.5 text-sm font-medium duration-300 ease-in-out hover:text-primary lg:text-base"        
                     onClick={() => setDropdownOpen(false)}
                   >
                     <svg
@@ -152,11 +152,91 @@ const DropdownUser = () => {
                       xmlns="http://www.w3.org/2000/svg"
                     >
                       <path
-                        d="M9.0002 1.5C4.8577 1.5 1.5002 4.8575 1.5002 9C1.5002 13.1425 4.8577 16.5 9.0002 16.5C13.1427 16.5 16.5002 13.1425 16.5002 9C16.5002 4.8575 13.1427 1.5 9.0002 1.5ZM13.5002 9.75H9.7502V13.5C9.7502 13.9125 9.4127 14.25 9.0002 14.25C8.5877 14.25 8.2502 13.9125 8.2502 13.5V9.75H4.5002C4.0877 9.75 3.7502 9.4125 3.7502 9C3.7502 8.5875 4.0877 8.25 4.5002 8.25H8.2502V4.5C8.2502 4.0875 8.5877 3.75 9.0002 3.75C9.4127 3.75 9.7502 4.0875 9.7502 4.5V8.25H13.5002C13.9127 8.25 14.2502 8.5875 14.2502 9C14.2502 9.4125 13.9127 9.75 13.5002 9.75Z"
+                        d="M9.0002 15.75C7.59395 15.75 6.1877 15.1875 5.12207 14.1219C3.01582 12.0156 3.01582 8.48438 5.12207 6.37813C7.22832 4.27188 10.7596 4.27188 12.8658 6.37813C14.9721 8.48438 14.9721 12.0156 12.8658 14.1219C11.8002 15.1875 10.3939 15.75 9.0002 15.75ZM9.0002 5.25C8.04395 5.25 7.08770 5.61563 6.37207 6.33125C4.94082 7.7625 4.94082 10.2375 6.37207 11.6688C7.80332 13.1 10.2783 13.1 11.7096 11.6688C13.1408 10.2375 13.1408 7.7625 11.7096 6.33125C10.9939 5.61563 10.0377 5.25 9.0002 5.25Z"
+                        fill=""
+                      />
+                      <path
+                        d="M15.7502 17.25H2.2502C1.8377 17.25 1.5002 16.9125 1.5002 16.5C1.5002 16.0875 1.8377 15.75 2.2502 15.75H15.7502C16.1627 15.75 16.5002 16.0875 16.5002 16.5C16.5002 16.9125 16.1627 17.25 15.7502 17.25Z"
+                        fill=""
+                      />
+                    </svg>
+                    My Contacts
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/jobs/post"
+                    className="flex items-center gap-3.5 text-sm font-medium duration-300 ease-in-out hover:text-primary lg:text-base"        
+                    onClick={() => setDropdownOpen(false)}
+                  >
+                    <svg
+                      className="fill-current"
+                      width="18"
+                      height="18"
+                      viewBox="0 0 18 18"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M9.0002 1.5C4.8577 1.5 1.5002 4.8575 1.5002 9C1.5002 13.1425 4.8577 16.5 9.0002 16.5C13.1427 16.5 16.5002 13.1425 16.5002 9C16.5002 4.8575 13.1427 1.5 9.0002 1.5ZM13.5002 9.75H9.7502V13.5C9.7502 13.9125 9.4127 14.25 9.0002 14.25C8.5877 14.25 8.2502 13.9125 8.2502 13.5V9.75H4.5002C4.0877 9.75 3.7502 9.4125 3.7502 9C3.7502 8.5875 4.0877 8.25 4.5002 8.25H8.2502V4.5C8.2502 4.0875 8.5877 3.75 9.0002 3.75C9.4127 3.75 9.7502 4.0875 9.7502 4.5V8.25H13.5002C13.9127 8.25 14.2502 8.5875 14.2502 9C14.2502 9.4125 13.9127 9.75 13.5002 9.75Z"        
                         fill=""
                       />
                     </svg>
                     Post New Job
+                  </Link>
+                </li>
+              </>
+            )}
+
+            {/* Show recruiter-specific menu items */}
+            {session.user.userClass === "Recruiter" && (
+              <>
+                <li>
+                  <Link
+                    href="/recruiter-dashboard"
+                    className="flex items-center gap-3.5 text-sm font-medium duration-300 ease-in-out hover:text-primary lg:text-base"        
+                    onClick={() => setDropdownOpen(false)}
+                  >
+                    <svg
+                      className="fill-current"
+                      width="18"
+                      height="18"
+                      viewBox="0 0 18 18"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M6.10322 0.956299H2.53135C1.5751 0.956299 0.787598 1.7438 0.787598 2.70005V6.27192C0.787598 7.22817 1.5751 8.01567 2.53135 8.01567H6.10322C7.05947 8.01567 7.84697 7.22817 7.84697 6.27192V2.72817C7.8751 1.7438 7.0876 0.956299 6.10322 0.956299Z"
+                        fill=""
+                      />
+                    </svg>
+                    My Dashboard
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/my-contacts"
+                    className="flex items-center gap-3.5 text-sm font-medium duration-300 ease-in-out hover:text-primary lg:text-base"        
+                    onClick={() => setDropdownOpen(false)}
+                  >
+                    <svg
+                      className="fill-current"
+                      width="18"
+                      height="18"
+                      viewBox="0 0 18 18"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M9.0002 15.75C7.59395 15.75 6.1877 15.1875 5.12207 14.1219C3.01582 12.0156 3.01582 8.48438 5.12207 6.37813C7.22832 4.27188 10.7596 4.27188 12.8658 6.37813C14.9721 8.48438 14.9721 12.0156 12.8658 14.1219C11.8002 15.1875 10.3939 15.75 9.0002 15.75ZM9.0002 5.25C8.04395 5.25 7.08770 5.61563 6.37207 6.33125C4.94082 7.7625 4.94082 10.2375 6.37207 11.6688C7.80332 13.1 10.2783 13.1 11.7096 11.6688C13.1408 10.2375 13.1408 7.7625 11.7096 6.33125C10.9939 5.61563 10.0377 5.25 9.0002 5.25Z"
+                        fill=""
+                      />
+                      <path
+                        d="M15.7502 17.25H2.2502C1.8377 17.25 1.5002 16.9125 1.5002 16.5C1.5002 16.0875 1.8377 15.75 2.2502 15.75H15.7502C16.1627 15.75 16.5002 16.0875 16.5002 16.5C16.5002 16.9125 16.1627 17.25 15.7502 17.25Z"
+                        fill=""
+                      />
+                    </svg>
+                    My Contacts
                   </Link>
                 </li>
               </>
@@ -189,7 +269,7 @@ const DropdownUser = () => {
           </ul>
           <button
             onClick={handleSignOut}
-            className="flex items-center gap-3.5 px-6 py-4 text-sm font-medium duration-300 ease-in-out hover:text-primary lg:text-base"
+            className="flex items-center gap-3.5 px-6 py-4 text-sm font-medium duration-300 ease-in-out hover:text-primary lg:text-base"      
           >
             <svg
               className="fill-current"
@@ -204,7 +284,7 @@ const DropdownUser = () => {
                 fill=""
               />
               <path
-                d="M6.05001 11.7563H12.2031C12.6156 11.7563 12.9594 11.4125 12.9594 11C12.9594 10.5875 12.6156 10.2438 12.2031 10.2438H6.08439L8.21564 8.07813C8.52501 7.76875 8.52501 7.2875 8.21564 6.97812C7.90626 6.66875 7.42501 6.66875 7.11564 6.97812L3.67814 10.4844C3.36876 10.7938 3.36876 11.275 3.67814 11.5844L7.11564 15.0906C7.25626 15.2313 7.45939 15.3094 7.66251 15.3094C7.86564 15.3094 8.06876 15.2313 8.20939 15.0906C8.51876 14.7813 8.51876 14.3 8.20939 13.9906L6.05001 11.7563Z"
+                d="M6.05001 11.7563H12.2031C12.6156 11.7563 12.9594 11.4125 12.9594 11C12.9594 10.5875 12.6156 10.2438 12.2031 10.2438H6.08439L8.21564 8.07813C8.52501 7.76875 8.52501 7.2875 8.21564 6.97812C7.90626 6.66875 7.42501 6.66875 7.11564 6.97812L3.67814 10.4844C3.36876 10.7938 3.36876 11.275 3.67814 11.5844L7.11564 15.0906C7.25626 15.2313 7.45939 15.3094 7.66251 15.3094C7.86564 15.3094 8.06876 15.2313 8.20939 15.0906C8.51876 14.7813 8.51876 14.3 8.20939 13.9906L6.05001 11.7563Z"      
                 fill=""
               />
             </svg>

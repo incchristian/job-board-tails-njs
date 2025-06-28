@@ -7,7 +7,7 @@ import { open } from 'sqlite';
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -18,11 +18,10 @@ export async function GET() {
     });
 
     let contacts;
-    
-    if (session.user.userClass === 'employer') {
-      // Get recruiters that accepted this employer's requests
+
+    if (session.user.userClass.toLowerCase() === 'employer') {
       contacts = await db.all(`
-        SELECT 
+        SELECT
           c.*,
           u.id as contactId,
           u.name,
@@ -36,10 +35,9 @@ export async function GET() {
         WHERE c.employerId = ? AND c.status = 'accepted'
         ORDER BY c.createdAt DESC
       `, [session.user.id]);
-    } else if (session.user.userClass === 'recruiter') {
-      // Get employers that this recruiter accepted
+    } else if (session.user.userClass.toLowerCase() === 'recruiter') {
       contacts = await db.all(`
-        SELECT 
+        SELECT
           c.*,
           u.id as contactId,
           u.name,
@@ -58,7 +56,6 @@ export async function GET() {
     }
 
     await db.close();
-
     return NextResponse.json({ contacts });
   } catch (error) {
     console.error('Error fetching contacts:', error);

@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react';
 interface ProfileContextType {
   profilePic: string;
   setProfilePic: (pic: string) => void;
-  userClass: 'admin' | 'user' | null;
+  userClass: 'Employer' | 'Recruiter' | 'JobSeeker' | 'Admin' | null;
 }
 
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
@@ -15,7 +15,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [profilePic, setProfilePic] = useState('/images/user/user-03.png');
   const { data: session } = useSession();
   
-  const userClass = session?.user?.userClass as 'admin' | 'user' | null;
+  const userClass = session?.user?.userClass as 'Employer' | 'Recruiter' | 'JobSeeker' | 'Admin' | null;
 
   // Debug: Log when no session is found
   useEffect(() => {
@@ -37,6 +37,6 @@ export function useProfile() {
   const context = useContext(ProfileContext);
   if (context === undefined) {
     throw new Error('useProfile must be used within a ProfileProvider');
-    }
-    return context;
   }
+  return context;
+}

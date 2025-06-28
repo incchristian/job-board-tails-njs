@@ -17,9 +17,9 @@ export async function GET(request: NextRequest) {
       driver: sqlite3.Database,
     });
 
-    // Get all users with userClass = 'Recruiter'
+    // Get all users with userClass = 'Recruiter' (removed createdAt)
     const recruiters = await db.all(
-      `SELECT id, name, email, userClass, createdAt 
+      `SELECT id, name, email, userClass 
        FROM users 
        WHERE userClass = 'Recruiter' 
        ORDER BY name ASC`
