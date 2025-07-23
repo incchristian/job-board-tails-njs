@@ -1,0 +1,40 @@
+{
+  "_format": "hh-sol-cache-2",
+  "files": {
+    "C:\\Projects\\job-board-tails-njs\\contracts\\JobAssignmentContract.sol": {
+      "lastModificationDate": 1751938510451,
+      "contentHash": "a4c8080e8b07efdc411915e90640fb7b",
+      "sourceName": "contracts/JobAssignmentContract.sol",
+      "solcConfig": {
+        "version": "0.8.19",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "JobAssignmentContract"
+      ]
+    }
+  }
+}
