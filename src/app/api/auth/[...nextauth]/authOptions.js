@@ -39,7 +39,7 @@ export const authOptions = {
             [credentials.email]
           );
 
-          console.log("Database user:", user); // Add this debug line
+          console.log("Database user:", user);
 
           await db.close();
 
@@ -60,9 +60,9 @@ export const authOptions = {
               id: user.id.toString(),
               name: user.name || user.email,
               email: user.email,
-              userClass: user.userClass, // Use userClass instead of userType
+              userClass: user.userClass,
             };
-            console.log("Returning user:", returnUser); // Add this debug line
+            console.log("Returning user:", returnUser);
             return returnUser;
           }
 
@@ -76,20 +76,20 @@ export const authOptions = {
   ],
   callbacks: {
     async jwt({ token, user }) {
-      console.log("JWT callback - user:", user, "token:", token); // Add debug
+      console.log("JWT callback - user:", user, "token:", token);
       if (user) {
         token.id = user.id;
-        token.userClass = user.userClass; // Change to userClass
+        token.userClass = user.userClass;
       }
       return token;
     },
     async session({ session, token }) {
-      console.log("Session callback - token:", token); // Add debug
+      console.log("Session callback - token:", token);
       if (token) {
         session.user.id = token.id;
-        session.user.userClass = token.userClass; // Change to userClass
+        session.user.userClass = token.userClass;
       }
-      console.log("Final session:", session); // Add debug
+      console.log("Final session:", session);
       return session;
     },
   },
@@ -99,6 +99,23 @@ export const authOptions = {
   },
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days (in seconds)
+    updateAge: 24 * 60 * 60, // 24 hours - update session if older than this
+  },
+  jwt: {
+    maxAge: 30 * 24 * 60 * 60, // 30 days (in seconds)
+  },
+  cookies: {
+    sessionToken: {
+      name: `next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 30 * 24 * 60 * 60 // 30 days
+      }
+    }
   },
   secret: process.env.NEXTAUTH_SECRET,
 }

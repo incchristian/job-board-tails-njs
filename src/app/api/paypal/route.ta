@@ -1,0 +1,60 @@
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function POST(req: NextRequest) {
+  try {
+    const { amount, jobId, recruiterId } = await req.json();
+
+    const paypalResponse = await fetch(`${process.env.PAYPAL_BASE_URL}/v2/checkout/orders`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${await getPayPalAccessToken()}`,
+      },
+      body: JSON.stringify({
+        intent: 'CAPTURE',
+        purchase_units: [{
+          amount: {
+            currency_code: 'USD',
+            value: amount.toString(),
+          },
+          description: `Job Assignment Escrow - Job #${jobId}`,
+          custom_id: `job_${jobId}_recruiter_${recruiterId}`,
+        }],
+        application_context: {
+          return_url: `${req.headers.get('origin')}/jobs/${jobId}?payment=success`,
+          cancel_url: `${req.headers.get('origin')}/jobs/${jobId}?payment=cancelled`,
+        },
+      }),
+    });
+
+    const order = await paypalResponse.json();
+    
+    if (!paypalResponse.ok) {
+      throw new Error(order.message || 'PayPal order creation failed');
+    }
+
+    return NextResponse.json({ orderId: order.id });
+  } catch (error) {
+    console.error('PayPal order creation error:', error);
+    return NextResponse.json(
+      { error: 'Failed to create PayPal order' },
+      { status: 500 }
+    );
+  }
+}
+
+async function getPayPalAccessToken() {
+  const response = await fetch(`${process.env.PAYPAL_BASE_URL}/v1/oauth2/token`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': `Basic ${Buffer.from(
+        `${process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID}:${process.env.PAYPAL_CLIENT_SECRET}`
+      ).toString('base64')}`,
+    },
+    body: 'grant_type=client_credentials',
+  });
+
+  const data = await response.json();
+  return data.access_token;
+}

@@ -19,7 +19,6 @@ export async function POST(
     const { recruiterId, action } = await request.json();
     
     console.log(`🔍 Hiring request: Job ${jobId}, Recruiter ${recruiterId}, Action: ${action}`);
-    console.log(`🔍 Session user ID: "${session.user.id}" (type: ${typeof session.user.id})`);
 
     if (action !== 'hire-recruiter') {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
@@ -30,12 +29,9 @@ export async function POST(
       driver: sqlite3.Database,
     });
 
-    // Convert everything to integers for consistency
     const jobIdInt = parseInt(jobId);
     const employerIdInt = parseInt(session.user.id);
     const recruiterIdInt = parseInt(recruiterId);
-    
-    console.log(`🔍 Looking for job ${jobIdInt} with employerId ${employerIdInt}`);
     
     // Check if job exists and belongs to this employer
     const job = await db.get(
@@ -44,99 +40,100 @@ export async function POST(
     );
 
     if (!job) {
-      console.log(`❌ Job ${jobIdInt} not found for employer ${employerIdInt}`);
-      // Debug: Show what jobs exist
-      const allJobs = await db.all('SELECT id, title, employerId FROM jobs LIMIT 5');
-      console.log(`📋 Sample jobs in database:`, allJobs);
       await db.close();
       return NextResponse.json({ error: 'Job not found or access denied' }, { status: 404 });
     }
 
-    console.log(`✅ Job found: "${job.title}" (ID: ${job.id}, employerId: ${job.employerId})`);
-
     // Check if recruiter exists
     const recruiter = await db.get(
-      'SELECT id, name, userClass FROM users WHERE id = ? AND userClass = ?',
-      [recruiterIdInt, 'Recruiter']
+      'SELECT id, name, userClass FROM users WHERE id = ? AND (userClass = ? OR userClass = ?)',
+      [recruiterIdInt, 'Recruiter', 'recruiter']
     );
 
     if (!recruiter) {
-      console.log(`❌ Recruiter ${recruiterIdInt} not found`);
       await db.close();
       return NextResponse.json({ error: 'Recruiter not found' }, { status: 404 });
     }
 
-    console.log(`✅ Recruiter found: "${recruiter.name}" (ID: ${recruiter.id})`);
-
-    // Check if recruiter is already hired for this job
-    const existingHire = await db.get(
-      'SELECT * FROM job_recruiters WHERE jobId = ? AND recruiterId = ?',
-      [jobIdInt, recruiterIdInt]
+    // Check if assignment already exists
+    const existingAssignment = await db.get(
+      'SELECT * FROM job_assignments WHERE jobId = ? AND recruiterId = ? AND employerId = ?',
+      [jobIdInt, recruiterIdInt, employerIdInt]
     );
 
-    if (existingHire) {
-      console.log(`❌ Recruiter already hired with status: ${existingHire.status}`);
+    if (existingAssignment) {
       await db.close();
       return NextResponse.json({ 
-        error: `Recruiter already hired for this job (Status: ${existingHire.status})` 
+        error: `Recruiter already assigned to this job (Status: ${existingAssignment.status})` 
       }, { status: 400 });
     }
 
-    console.log(`✅ No existing hire found. Proceeding with hiring...`);
-
-    // Create job_recruiters entry with PENDING status
-    const hireResult = await db.run(
-      'INSERT INTO job_recruiters (jobId, recruiterId, employerId, status, hiredAt) VALUES (?, ?, ?, ?, ?)',
-      [jobIdInt, recruiterIdInt, employerIdInt, 'pending', new Date().toISOString()]
+    // 🎯 CREATE UNIFIED ASSIGNMENT ENTRY
+    const assignmentResult = await db.run(
+      `INSERT INTO job_assignments (
+        jobId, 
+        employerId, 
+        recruiterId, 
+        message, 
+        status, 
+        createdAt, 
+        updatedAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        jobIdInt, 
+        employerIdInt, 
+        recruiterIdInt, 
+        `Hired for: ${job.title}`, 
+        'accepted', // ✅ CHANGED FROM 'hired' TO 'accepted'
+        new Date().toISOString(),
+        new Date().toISOString()
+      ]
     );
 
-    console.log(`✅ Created job_recruiters entry with ID: ${hireResult.lastID}`);
+    console.log(`✅ Created shared assignment with ID: ${assignmentResult.lastID}`);
+
+    // Also create job_recruiters entry for backward compatibility
+    const hireResult = await db.run(
+      'INSERT INTO job_recruiters (jobId, recruiterId, employerId, status, hiredAt) VALUES (?, ?, ?, ?, ?)',
+      [jobIdInt, recruiterIdInt, employerIdInt, 'hired', new Date().toISOString()]
+    );
 
     // Create notification for the recruiter
-    const notificationResult = await db.run(
+    await db.run(
       `INSERT INTO notifications (userId, type, title, message, relatedId, isRead, createdAt) 
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         recruiterIdInt,
-        'job_hired',
+        'job_assignment',
         'New Job Assignment!',
         `You have been hired by ${session.user.name} for: ${job.title}`,
-        jobIdInt,
+        assignmentResult.lastID, // Reference the assignment, not the job
         false,
         new Date().toISOString()
       ]
     );
 
-    console.log(`✅ Created notification with ID: ${notificationResult.lastID}`);
-
-    // Update job status (only if jobs table has status column)
-    try {
-      await db.run(
-        'UPDATE jobs SET status = ? WHERE id = ?',
-        ['recruiter_hired', jobIdInt]
-      );
-      console.log(`✅ Updated job status to 'recruiter_hired'`);
-    } catch (statusError) {
-      console.log(`⚠️ Could not update job status (column might not exist):`, statusError.message);
-    }
+    // Update job status
+    await db.run(
+      'UPDATE jobs SET status = ? WHERE id = ?',
+      ['recruiter_hired', jobIdInt]
+    );
 
     await db.close();
 
     return NextResponse.json({ 
-      message: 'Recruiter hired successfully! They will receive a notification.',
+      message: 'Recruiter hired successfully! Assignment created and visible to both parties.',
+      assignmentId: assignmentResult.lastID,
       jobId: jobIdInt,
       recruiterId: recruiterIdInt,
-      status: 'pending',
-      hireId: hireResult.lastID,
-      notificationId: notificationResult.lastID
+      status: 'hired'
     });
 
   } catch (error: any) {
     console.error("❌ Error hiring recruiter:", error);
     return NextResponse.json({ 
       error: "Internal Server Error", 
-      details: error.message,
-      code: error.code
+      details: error.message
     }, { status: 500 });
   }
 }

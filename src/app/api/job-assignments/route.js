@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/authOptions';
 import sqlite3 from 'sqlite3';
@@ -9,7 +9,7 @@ export async function POST(request) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session || session.user.userClass !== 'employer') {
+    if (!session || session.user.userClass !== 'Employer') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -33,7 +33,7 @@ export async function POST(request) {
 
     // Check if recruiter exists
     const recruiter = await db.get(
-      'SELECT * FROM users WHERE id = ? AND userClass = "recruiter"',
+      'SELECT * FROM users WHERE id = ? AND userClass = "Recruiter"',
       [recruiterId]
     );
 
@@ -97,61 +97,98 @@ export async function GET(request) {
       driver: sqlite3.Database,
     });
 
-    let assignments;
+    let assignments = [];
 
-    if (session.user.userClass === 'employer') {
-      if (jobId) {
-        assignments = await db.all(`
+    if (session.user.userClass === 'Employer') {
+      // Show all assignments where this user is the employer
+      const query = jobId 
+        ? `
           SELECT 
             ja.*,
             u.name as recruiterName,
             u.email as recruiterEmail,
             u.profilePicture as recruiterProfilePicture,
-            j.title as jobTitle
+            j.title as jobTitle,
+            j.description as jobDescription,
+            j.location as jobLocation,
+            j.status as jobStatus
           FROM job_assignments ja
           JOIN users u ON u.id = ja.recruiterId
           JOIN jobs j ON j.id = ja.jobId
           WHERE ja.employerId = ? AND ja.jobId = ?
-          ORDER BY ja.createdAt DESC
-        `, [session.user.id, jobId]);
-      } else {
-        assignments = await db.all(`
+          ORDER BY ja.updatedAt DESC
+        `
+        : `
           SELECT 
             ja.*,
             u.name as recruiterName,
             u.email as recruiterEmail,
             u.profilePicture as recruiterProfilePicture,
-            j.title as jobTitle
+            j.title as jobTitle,
+            j.description as jobDescription,
+            j.location as jobLocation,
+            j.status as jobStatus
           FROM job_assignments ja
           JOIN users u ON u.id = ja.recruiterId
           JOIN jobs j ON j.id = ja.jobId
           WHERE ja.employerId = ?
-          ORDER BY ja.createdAt DESC
-        `, [session.user.id]);
-      }
-    } else if (session.user.userClass === 'recruiter') {
-      assignments = await db.all(`
-        SELECT 
-          ja.*,
-          u.name as employerName,
-          u.email as employerEmail,
-          u.company as employerCompany,
-          j.title as jobTitle,
-          j.description as jobDescription,
-          j.location as jobLocation,
-          j.salary as jobSalary,
-          j.requirements as jobRequirements
-        FROM job_assignments ja
-        JOIN users u ON u.id = ja.employerId
-        JOIN jobs j ON j.id = ja.jobId
-        WHERE ja.recruiterId = ?
-        ORDER BY ja.createdAt DESC
-      `, [session.user.id]);
+          ORDER BY ja.updatedAt DESC
+        `;
+      
+      const params = jobId ? [session.user.id, jobId] : [session.user.id];
+      assignments = await db.all(query, params);
+      
+    } else if (session.user.userClass === 'Recruiter') {
+      // Show all assignments where this user is the recruiter
+      const query = jobId
+        ? `
+          SELECT 
+            ja.*,
+            u.name as employerName,
+            u.email as employerEmail,
+            u.company as employerCompany,
+            j.title as jobTitle,
+            j.description as jobDescription,
+            j.location as jobLocation,
+            j.salary as jobSalary,
+            j.requirements as jobRequirements,
+            j.status as jobStatus
+          FROM job_assignments ja
+          JOIN users u ON u.id = ja.employerId
+          JOIN jobs j ON j.id = ja.jobId
+          WHERE ja.recruiterId = ? AND ja.jobId = ?
+          ORDER BY ja.updatedAt DESC
+        `
+        : `
+          SELECT 
+            ja.*,
+            u.name as employerName,
+            u.email as employerEmail,
+            u.company as employerCompany,
+            j.title as jobTitle,
+            j.description as jobDescription,
+            j.location as jobLocation,
+            j.salary as jobSalary,
+            j.requirements as jobRequirements,
+            j.status as jobStatus
+          FROM job_assignments ja
+          JOIN users u ON u.id = ja.employerId
+          JOIN jobs j ON j.id = ja.jobId
+          WHERE ja.recruiterId = ?
+          ORDER BY ja.updatedAt DESC
+        `;
+      
+      const params = jobId ? [session.user.id, jobId] : [session.user.id];
+      assignments = await db.all(query, params);
     }
 
     await db.close();
 
-    return NextResponse.json({ assignments });
+    return NextResponse.json({ 
+      assignments,
+      count: assignments.length,
+      userRole: session.user.userClass
+    });
   } catch (error) {
     console.error('Error fetching job assignments:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -163,7 +200,7 @@ export async function PATCH(request) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session || session.user.userClass !== 'recruiter') {
+    if (!session || session.user.userClass !== 'Recruiter') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -210,6 +247,72 @@ export async function PATCH(request) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error updating job assignment:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+// Check if tables exist and their structure
+export async function CHECK(request) {
+  try {
+    const db = await open({
+      filename: './database.sqlite',
+      driver: sqlite3.Database,
+    });
+
+    const schemaJobAssignments = await db.all('PRAGMA table_info(job_assignments)');
+    const schemaUsers = await db.all('PRAGMA table_info(users)');
+    const schemaJobs = await db.all('PRAGMA table_info(jobs)');
+
+    await db.close();
+
+    return NextResponse.json({ schemaJobAssignments, schemaUsers, schemaJobs });
+  } catch (error) {
+    console.error('Error checking table schema:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+// Check actual data
+export async function CHECK_DATA(request) {
+  try {
+    const db = await open({
+      filename: './database.sqlite',
+      driver: sqlite3.Database,
+    });
+
+    const jobAssignments = await db.all('SELECT * FROM job_assignments');
+    const users = await db.all('SELECT id, name, email, userClass FROM users');
+    const jobs = await db.all('SELECT id, title, employerId FROM jobs');
+
+    await db.close();
+
+    return NextResponse.json({ jobAssignments, users, jobs });
+  } catch (error) {
+    console.error('Error checking actual data:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function OPTIONS(request) {
+  try {
+    const db = await open({
+      filename: './database.sqlite',
+      driver: sqlite3.Database,
+    });
+
+    const allAssignments = await db.all('SELECT * FROM job_assignments');
+    const allUsers = await db.all('SELECT id, name, email, userClass FROM users');
+    const allJobs = await db.all('SELECT id, title, employerId FROM jobs');
+
+    await db.close();
+
+    return NextResponse.json({ 
+      assignments: allAssignments,
+      users: allUsers,
+      jobs: allJobs
+    });
+  } catch (error) {
+    console.error('Error checking data:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

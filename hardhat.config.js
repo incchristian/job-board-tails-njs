@@ -6,7 +6,7 @@ module.exports = {
   solidity: "0.8.19",
   networks: {
     polygonMumbai: {
-      url: "https://polygon-mumbai.g.alchemy.com/v2/demo",
+      url: "https://polygon-testnet.public.blastapi.io",
       accounts: [process.env.PRIVATE_KEY],
     },
     polygon: {
